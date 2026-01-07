@@ -31,7 +31,8 @@ function initializeApp() {
 function setupEventListeners() {
     const uploadZone = document.getElementById('uploadZone');
     const fileInput = document.getElementById('fileInput');
-    const removeFileBtn = document.getElementById('removeFile');
+    const btnSelect = document.getElementById('btnSelect');
+    const changeFileBtn = document.getElementById('changeFile');
     const searchInput = document.getElementById('searchInput');
     const filterDestination = document.getElementById('filterDestination');
     const filterStatus = document.getElementById('filterStatus');
@@ -40,17 +41,31 @@ function setupEventListeners() {
     const prevPage = document.getElementById('prevPage');
     const nextPage = document.getElementById('nextPage');
 
-    // Drag and drop
+    // Drag and drop on upload zone
     uploadZone.addEventListener('dragover', handleDragOver);
     uploadZone.addEventListener('dragleave', handleDragLeave);
     uploadZone.addEventListener('drop', handleDrop);
-    uploadZone.addEventListener('click', () => fileInput.click());
 
-    // File input
+    // Click on upload zone (but not on the button)
+    uploadZone.addEventListener('click', (e) => {
+        if (e.target !== btnSelect && !btnSelect.contains(e.target)) {
+            fileInput.click();
+        }
+    });
+
+    // Select file button
+    btnSelect.addEventListener('click', (e) => {
+        e.stopPropagation();
+        fileInput.click();
+    });
+
+    // File input change
     fileInput.addEventListener('change', handleFileSelect);
 
-    // Remove file
-    removeFileBtn.addEventListener('click', resetApp);
+    // Change file button
+    changeFileBtn.addEventListener('click', () => {
+        fileInput.click();
+    });
 
     // Search and filters
     searchInput.addEventListener('input', applyFilters);
@@ -115,12 +130,21 @@ function processFile(file) {
     // Validate file
     if (!file.name.match(/\.(edi|txt)$/i)) {
         alert('Por favor seleccione un archivo EDI válido (.edi o .txt)');
+        // Reset file input
+        document.getElementById('fileInput').value = '';
         return;
     }
 
-    // Show file info
-    document.getElementById('fileName').textContent = file.name;
-    document.getElementById('fileInfo').style.display = 'flex';
+    // Show file loaded info
+    document.getElementById('loadedFileName').textContent = file.name;
+
+    // Format file size
+    const sizeKB = (file.size / 1024).toFixed(1);
+    document.getElementById('fileSize').textContent = `${sizeKB} KB`;
+
+    // Hide upload zone and show file loaded info
+    document.getElementById('uploadZone').style.display = 'none';
+    document.getElementById('fileLoadedInfo').style.display = 'flex';
 
     // Read file
     const reader = new FileReader();
@@ -128,10 +152,23 @@ function processFile(file) {
         try {
             const content = e.target.result;
             parseAndDisplayData(content);
+
+            // Reset file input so the same file can be selected again if needed
+            document.getElementById('fileInput').value = '';
         } catch (error) {
             alert('Error al leer el archivo: ' + error.message);
             console.error(error);
+            // Reset on error
+            document.getElementById('uploadZone').style.display = 'block';
+            document.getElementById('fileLoadedInfo').style.display = 'none';
+            document.getElementById('fileInput').value = '';
         }
+    };
+    reader.onerror = function() {
+        alert('Error al leer el archivo');
+        document.getElementById('uploadZone').style.display = 'block';
+        document.getElementById('fileLoadedInfo').style.display = 'none';
+        document.getElementById('fileInput').value = '';
     };
     reader.readAsText(file);
 }
@@ -512,7 +549,8 @@ function resetApp() {
 
     // Reset UI
     document.getElementById('fileInput').value = '';
-    document.getElementById('fileInfo').style.display = 'none';
+    document.getElementById('uploadZone').style.display = 'block';
+    document.getElementById('fileLoadedInfo').style.display = 'none';
     document.getElementById('voyageSection').style.display = 'none';
     document.getElementById('statsSection').style.display = 'none';
     document.getElementById('tableSection').style.display = 'none';

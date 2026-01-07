@@ -105,29 +105,58 @@ body {
     box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
 }
 
-.file-info {
+.file-loaded-info {
     margin-top: 20px;
-    padding: 15px 20px;
-    background: #e6fffa;
-    border: 2px solid #38b2ac;
-    border-radius: 8px;
+    padding: 15px 25px;
+    background: linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%);
+    border: 2px solid #48bb78;
+    border-radius: 12px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    box-shadow: 0 4px 12px rgba(72, 187, 120, 0.2);
 }
 
-.btn-remove {
-    background: #fc8181;
+.file-loaded-content {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.file-icon {
+    font-size: 2em;
+}
+
+.file-details {
+    display: flex;
+    flex-direction: column;
+}
+
+.file-details strong {
+    color: #22543d;
+    font-size: 1.1em;
+}
+
+.file-size {
+    color: #2f855a;
+    font-size: 0.9em;
+}
+
+.btn-change-file {
+    background: #4299e1;
     color: white;
     border: none;
-    padding: 5px 12px;
-    border-radius: 5px;
+    padding: 10px 20px;
+    border-radius: 8px;
     cursor: pointer;
-    font-weight: bold;
+    font-weight: 600;
+    transition: all 0.3s ease;
 }
 
-.btn-remove:hover {
-    background: #f56565;
+.btn-change-file:hover {
+    background: #3182ce;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(66, 153, 225, 0.4);
 }
 
 /* Voyage Section */
@@ -438,6 +467,20 @@ body {
 
     .header h1 {
         font-size: 1.8em;
+    }
+
+    .file-loaded-info {
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
+    }
+
+    .file-loaded-content {
+        flex-direction: column;
+    }
+
+    .btn-change-file {
+        width: 100%;
     }
 
     .table-controls {

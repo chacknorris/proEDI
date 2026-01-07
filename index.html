@@ -24,12 +24,18 @@
                     <h3>Arrastre su archivo EDI aquí</h3>
                     <p>o haga clic para seleccionar</p>
                     <input type="file" id="fileInput" accept=".edi,.txt" style="display: none;">
-                    <button class="btn-select" onclick="document.getElementById('fileInput').click()">Seleccionar Archivo</button>
+                    <button class="btn-select" id="btnSelect">Seleccionar Archivo</button>
                 </div>
             </div>
-            <div class="file-info" id="fileInfo" style="display: none;">
-                <span id="fileName"></span>
-                <button class="btn-remove" id="removeFile">✕</button>
+            <div class="file-loaded-info" id="fileLoadedInfo" style="display: none;">
+                <div class="file-loaded-content">
+                    <span class="file-icon">📄</span>
+                    <div class="file-details">
+                        <strong id="loadedFileName">archivo.edi</strong>
+                        <span id="fileSize" class="file-size"></span>
+                    </div>
+                </div>
+                <button class="btn-change-file" id="changeFile">Cambiar Archivo</button>
             </div>
         </section>
 
