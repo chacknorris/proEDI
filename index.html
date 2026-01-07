@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interpretador EDI - Gestión Portuaria</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>📦 Interpretador EDI - Gestión Portuaria</h1>
+            <p>Sistema de visualización de manifiestos de carga (BAPLIE)</p>
+        </header>
+
+        <!-- File Upload Section -->
+        <section class="upload-section">
+            <div class="upload-zone" id="uploadZone">
+                <div class="upload-content">
+                    <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <h3>Arrastre su archivo EDI aquí</h3>
+                    <p>o haga clic para seleccionar</p>
+                    <input type="file" id="fileInput" accept=".edi,.txt" style="display: none;">
+                    <button class="btn-select" onclick="document.getElementById('fileInput').click()">Seleccionar Archivo</button>
+                </div>
+            </div>
+            <div class="file-info" id="fileInfo" style="display: none;">
+                <span id="fileName"></span>
+                <button class="btn-remove" id="removeFile">✕</button>
+            </div>
+        </section>
+
+        <!-- Voyage Info Section -->
+        <section class="voyage-section" id="voyageSection" style="display: none;">
+            <h2>Información del Viaje</h2>
+            <div class="voyage-cards">
+                <div class="card">
+                    <div class="card-label">Buque</div>
+                    <div class="card-value" id="vesselName">-</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">Viaje</div>
+                    <div class="card-value" id="voyageNumber">-</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">Puerto Origen</div>
+                    <div class="card-value" id="portOrigin">-</div>
+                    <div class="card-subtitle" id="portOriginName"></div>
+                </div>
+                <div class="card">
+                    <div class="card-label">Puerto Destino</div>
+                    <div class="card-value" id="portDestination">-</div>
+                    <div class="card-subtitle" id="portDestinationName"></div>
+                </div>
+                <div class="card">
+                    <div class="card-label">Fecha Llegada</div>
+                    <div class="card-value" id="arrivalDate">-</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Statistics Section -->
+        <section class="stats-section" id="statsSection" style="display: none;">
+            <h2>Estadísticas</h2>
+            <div class="stats-cards">
+                <div class="stat-card">
+                    <div class="stat-icon">📦</div>
+                    <div class="stat-value" id="totalContainers">0</div>
+                    <div class="stat-label">Total Contenedores</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">⚖️</div>
+                    <div class="stat-value" id="totalWeight">0</div>
+                    <div class="stat-label">Peso Total (Ton)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">❄️</div>
+                    <div class="stat-value" id="reeferContainers">0</div>
+                    <div class="stat-label">Refrigerados</div>
+                </div>
+                <div class="stat-card danger">
+                    <div class="stat-icon">⚠️</div>
+                    <div class="stat-value" id="damagedContainers">0</div>
+                    <div class="stat-label">Dañados</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Table Section -->
+        <section class="table-section" id="tableSection" style="display: none;">
+            <div class="table-header">
+                <h2>Contenedores</h2>
+                <div class="table-controls">
+                    <input type="text" id="searchInput" placeholder="🔍 Buscar contenedor..." class="search-input">
+                    <select id="filterDestination" class="filter-select">
+                        <option value="">Todos los destinos</option>
+                    </select>
+                    <select id="filterStatus" class="filter-select">
+                        <option value="">Todos los estados</option>
+                        <option value="OK">OK</option>
+                        <option value="DAMAGED">Dañados</option>
+                        <option value="REEFER">Refrigerados</option>
+                    </select>
+                    <div class="export-buttons">
+                        <button class="btn-export" id="exportExcel">📊 Excel</button>
+                        <button class="btn-export" id="exportCSV">📄 CSV</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-wrapper">
+                <table class="data-table" id="containersTable">
+                    <thead>
+                        <tr>
+                            <th onclick="sortTable(0)">Nº</th>
+                            <th onclick="sortTable(1)">Contenedor</th>
+                            <th onclick="sortTable(2)">Tipo</th>
+                            <th onclick="sortTable(3)">Peso (KG)</th>
+                            <th onclick="sortTable(4)">Bahía</th>
+                            <th onclick="sortTable(5)">Origen</th>
+                            <th onclick="sortTable(6)">Destino</th>
+                            <th onclick="sortTable(7)">Carga</th>
+                            <th onclick="sortTable(8)">Temp (°C)</th>
+                            <th onclick="sortTable(9)">Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <!-- Data will be inserted here -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pagination" id="pagination">
+                <button class="btn-page" id="prevPage">◄ Anterior</button>
+                <span id="pageInfo">Página 1 de 1</span>
+                <button class="btn-page" id="nextPage">Siguiente ►</button>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Sistema de Interpretación EDI - EDIFACT BAPLIE Parser</p>
+        </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/edi-codes.js"></script>
+    <script src="js/edi-parser.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

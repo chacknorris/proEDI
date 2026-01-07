@@ -1,0 +1,460 @@
+/* Reset and Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #333;
+    line-height: 1.6;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+}
+
+/* Header */
+.header {
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    color: white;
+    padding: 30px 40px;
+    text-align: center;
+}
+
+.header h1 {
+    font-size: 2.5em;
+    margin-bottom: 10px;
+    font-weight: 700;
+}
+
+.header p {
+    font-size: 1.1em;
+    opacity: 0.9;
+}
+
+/* Upload Section */
+.upload-section {
+    padding: 40px;
+    background: #f8f9fa;
+}
+
+.upload-zone {
+    border: 3px dashed #cbd5e0;
+    border-radius: 12px;
+    padding: 60px 40px;
+    text-align: center;
+    background: white;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.upload-zone:hover {
+    border-color: #667eea;
+    background: #f7fafc;
+    transform: translateY(-2px);
+}
+
+.upload-zone.dragover {
+    border-color: #667eea;
+    background: #edf2f7;
+    border-style: solid;
+}
+
+.upload-icon {
+    width: 80px;
+    height: 80px;
+    color: #667eea;
+    margin: 0 auto 20px;
+}
+
+.upload-content h3 {
+    font-size: 1.5em;
+    color: #2d3748;
+    margin-bottom: 10px;
+}
+
+.upload-content p {
+    color: #718096;
+    margin-bottom: 20px;
+}
+
+.btn-select {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    font-size: 1em;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-select:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+}
+
+.file-info {
+    margin-top: 20px;
+    padding: 15px 20px;
+    background: #e6fffa;
+    border: 2px solid #38b2ac;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.btn-remove {
+    background: #fc8181;
+    color: white;
+    border: none;
+    padding: 5px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.btn-remove:hover {
+    background: #f56565;
+}
+
+/* Voyage Section */
+.voyage-section {
+    padding: 40px;
+    background: white;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.voyage-section h2 {
+    font-size: 1.8em;
+    margin-bottom: 20px;
+    color: #2d3748;
+}
+
+.voyage-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+.card {
+    background: linear-gradient(135deg, #f6f8fb 0%, #e9ecef 100%);
+    padding: 20px;
+    border-radius: 10px;
+    border-left: 4px solid #667eea;
+}
+
+.card-label {
+    font-size: 0.85em;
+    color: #718096;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.card-value {
+    font-size: 1.4em;
+    font-weight: 700;
+    color: #2d3748;
+}
+
+.card-subtitle {
+    font-size: 0.9em;
+    color: #4a5568;
+    margin-top: 5px;
+    font-weight: 400;
+    line-height: 1.4;
+}
+
+/* Statistics Section */
+.stats-section {
+    padding: 40px;
+    background: #f8f9fa;
+}
+
+.stats-section h2 {
+    font-size: 1.8em;
+    margin-bottom: 20px;
+    color: #2d3748;
+}
+
+.stats-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+.stat-card {
+    background: white;
+    padding: 25px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+}
+
+.stat-card.danger {
+    background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%);
+}
+
+.stat-icon {
+    font-size: 2.5em;
+    margin-bottom: 10px;
+}
+
+.stat-value {
+    font-size: 2em;
+    font-weight: 700;
+    color: #2d3748;
+    margin-bottom: 5px;
+}
+
+.stat-label {
+    font-size: 0.9em;
+    color: #718096;
+}
+
+/* Table Section */
+.table-section {
+    padding: 40px;
+    background: white;
+}
+
+.table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.table-header h2 {
+    font-size: 1.8em;
+    color: #2d3748;
+}
+
+.table-controls {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.search-input {
+    padding: 10px 15px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 1em;
+    width: 250px;
+    transition: border-color 0.3s;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.filter-select {
+    padding: 10px 15px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 1em;
+    background: white;
+    cursor: pointer;
+}
+
+.export-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-export {
+    background: #48bb78;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-export:hover {
+    background: #38a169;
+    transform: translateY(-2px);
+}
+
+/* Table */
+.table-wrapper {
+    overflow-x: auto;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+}
+
+.data-table thead {
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    color: white;
+}
+
+.data-table th {
+    padding: 15px 12px;
+    text-align: left;
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.data-table th:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.data-table tbody tr {
+    border-bottom: 1px solid #e2e8f0;
+    transition: background 0.2s;
+}
+
+.data-table tbody tr:hover {
+    background: #f7fafc;
+}
+
+.data-table td {
+    padding: 12px;
+    white-space: nowrap;
+}
+
+/* Status Badges */
+.status-ok {
+    background: #c6f6d5;
+    color: #22543d;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.85em;
+}
+
+.status-damaged {
+    background: #fed7d7;
+    color: #742a2a;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.85em;
+}
+
+.status-reefer {
+    background: #bee3f8;
+    color: #2c5282;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.85em;
+}
+
+/* Row Colors */
+.row-damaged {
+    background: #fff5f5 !important;
+}
+
+.row-reefer {
+    background: #ebf8ff !important;
+}
+
+.row-foodstuff {
+    background: #fefcbf !important;
+}
+
+/* Pagination */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    margin-top: 30px;
+    padding: 20px;
+}
+
+.btn-page {
+    background: #667eea;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-page:hover:not(:disabled) {
+    background: #5568d3;
+    transform: translateX(2px);
+}
+
+.btn-page:disabled {
+    background: #cbd5e0;
+    cursor: not-allowed;
+}
+
+#pageInfo {
+    font-weight: 600;
+    color: #4a5568;
+}
+
+/* Footer */
+.footer {
+    background: #2d3748;
+    color: white;
+    text-align: center;
+    padding: 20px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .container {
+        border-radius: 0;
+    }
+
+    .header h1 {
+        font-size: 1.8em;
+    }
+
+    .table-controls {
+        width: 100%;
+    }
+
+    .search-input {
+        width: 100%;
+    }
+
+    .table-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .voyage-cards,
+    .stats-cards {
+        grid-template-columns: 1fr;
+    }
+}

@@ -1,0 +1,16 @@
+# EDI files (pueden contener información sensible)
+*.edi
+
+# MacOS
+.DS_Store
+
+# IDEs
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*~
