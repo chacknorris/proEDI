@@ -5,6 +5,7 @@
 
 // Global variables
 let parser = new EDIParser();
+let bayplanVisualizer = null;
 let currentData = null;
 let filteredData = [];
 let currentPage = 1;
@@ -79,6 +80,72 @@ function setupEventListeners() {
     // Pagination
     prevPage.addEventListener('click', () => changePage(-1));
     nextPage.addEventListener('click', () => changePage(1));
+
+    // Main Tabs
+    const tabTable = document.getElementById('tabTable');
+    const tabBayplan = document.getElementById('tabBayplan');
+    tabTable.addEventListener('click', () => switchMainTab('table'));
+    tabBayplan.addEventListener('click', () => switchMainTab('bayplan'));
+
+    // Bayplan Tabs
+    const tabBayplan2D = document.getElementById('tabBayplan2D');
+    const tabBayplan3D = document.getElementById('tabBayplan3D');
+    tabBayplan2D.addEventListener('click', () => switchBayplanTab('2d'));
+    tabBayplan3D.addEventListener('click', () => switchBayplanTab('3d'));
+
+    // Bayplan 3D controls
+    const viewTop = document.getElementById('viewTop');
+    const viewFront = document.getElementById('viewFront');
+    const viewSide = document.getElementById('viewSide');
+    const viewIso = document.getElementById('viewIso');
+    const containerSearch = document.getElementById('containerSearch');
+    const containerSelect = document.getElementById('containerSelect');
+
+    viewTop.addEventListener('click', () => setBayplanView('top', viewTop));
+    viewFront.addEventListener('click', () => setBayplanView('front', viewFront));
+    viewSide.addEventListener('click', () => setBayplanView('side', viewSide));
+    viewIso.addEventListener('click', () => setBayplanView('iso', viewIso));
+
+    // Container search and selection
+    containerSearch.addEventListener('input', filterContainerList);
+    containerSelect.addEventListener('change', selectContainer);
+
+    const btnResetSelection = document.getElementById('btnResetSelection');
+    btnResetSelection.addEventListener('click', resetContainerSelection);
+
+    // Export Bayplan PDF
+    const exportBayplanPDF = document.getElementById('exportBayplanPDF');
+    exportBayplanPDF.addEventListener('click', generateBayplanPDF);
+
+    // View Cube controls
+    const viewCube = document.getElementById('viewCube');
+    if (viewCube) {
+        viewCube.querySelectorAll('.cube-face').forEach(face => {
+            face.addEventListener('click', (e) => {
+                const view = e.target.dataset.view;
+                if (bayplanVisualizer) {
+                    if (view === 'sideR') {
+                        // Right side view (opposite of left)
+                        bayplanVisualizer.setView('side');
+                        bayplanVisualizer.camera.position.x = -bayplanVisualizer.camera.position.x;
+                    } else if (view === 'back') {
+                        // Back view (opposite of front)
+                        bayplanVisualizer.setView('front');
+                        bayplanVisualizer.camera.position.z = -bayplanVisualizer.camera.position.z;
+                    } else if (view === 'bottom') {
+                        // Bottom view (opposite of top)
+                        bayplanVisualizer.setView('top');
+                        bayplanVisualizer.camera.position.y = -Math.abs(bayplanVisualizer.camera.position.y);
+                    } else {
+                        bayplanVisualizer.setView(view);
+                    }
+
+                    // Update button states
+                    document.querySelectorAll('.btn-view').forEach(btn => btn.classList.remove('active'));
+                }
+            });
+        });
+    }
 }
 
 /**
@@ -189,10 +256,12 @@ function parseAndDisplayData(content) {
         currentPage = 1;
         displayTable();
 
-        // Show sections
+        // Show tabs and sections
+        document.getElementById('mainTabsSection').style.display = 'block';
         document.getElementById('voyageSection').style.display = 'block';
         document.getElementById('statsSection').style.display = 'block';
         document.getElementById('tableSection').style.display = 'block';
+        document.getElementById('bayplanSection').style.display = 'none';
 
         console.log('Parsed data:', currentData);
     } catch (error) {
@@ -308,6 +377,13 @@ function displayTable() {
     // Populate table rows
     pageData.forEach((container, index) => {
         const row = tableBody.insertRow();
+        row.style.cursor = 'pointer';
+        row.addEventListener('click', (e) => {
+            // Don't open modal if clicking on the action button
+            if (!e.target.closest('.btn-view-detail')) {
+                showContainerDetail(container);
+            }
+        });
 
         // Apply row styling based on container properties
         if (container.status === 'DAMAGED') {
@@ -318,26 +394,42 @@ function displayTable() {
             row.classList.add('row-foodstuff');
         }
 
-        // Add cells
+        // Nº
         row.insertCell(0).textContent = startIndex + index + 1;
+
+        // Contenedor
         row.insertCell(1).textContent = container.containerNumber;
 
-        // Container Type with tooltip
-        const typeCell = row.insertCell(2);
-        typeCell.textContent = container.containerType || '-';
-        if (container.containerType) {
-            const typeInfo = EDICodes.formatContainerType(container.containerType);
-            if (typeInfo.description) {
-                typeCell.title = typeInfo.description;
-                typeCell.style.cursor = 'help';
-            }
-        }
+        // Posición
+        row.insertCell(2).textContent = container.bayPosition || '-';
 
-        row.insertCell(3).textContent = container.weight ? container.weight.toLocaleString() : '-';
-        row.insertCell(4).textContent = container.bayPosition || '-';
+        // Longitud (extract from container type)
+        const lengthCell = row.insertCell(3);
+        const typeCode = container.containerType || '';
+        if (typeCode.startsWith('20')) lengthCell.textContent = "20'";
+        else if (typeCode.startsWith('40')) lengthCell.textContent = "40'";
+        else if (typeCode.startsWith('45')) lengthCell.textContent = "45'";
+        else lengthCell.textContent = '-';
+
+        // Altura (from container type - assume standard for now)
+        const heightCell = row.insertCell(4);
+        if (typeCode.includes('H') || typeCode.includes('9')) heightCell.textContent = "9'6\"";
+        else heightCell.textContent = "8'6\"";
+
+        // Código ISO
+        row.insertCell(5).textContent = container.containerType || '-';
+
+        // Bahía
+        row.insertCell(6).textContent = container.bay ? String(container.bay).padStart(3, '0') : '-';
+
+        // Fila
+        row.insertCell(7).textContent = container.row ? String(container.row).padStart(2, '0') : '-';
+
+        // Tier
+        row.insertCell(8).textContent = container.tier ? String(container.tier).padStart(2, '0') : '-';
 
         // Port Origin with tooltip
-        const originCell = row.insertCell(5);
+        const originCell = row.insertCell(9);
         originCell.textContent = container.portOrigin || '-';
         if (container.portOrigin) {
             const portInfo = EDICodes.formatPort(container.portOrigin);
@@ -348,7 +440,7 @@ function displayTable() {
         }
 
         // Port Destination with tooltip
-        const destCell = row.insertCell(6);
+        const destCell = row.insertCell(10);
         destCell.textContent = container.portDestination || '-';
         if (container.portDestination) {
             const portInfo = EDICodes.formatPort(container.portDestination);
@@ -359,13 +451,21 @@ function displayTable() {
         }
 
         // Cargo Type with translation
-        const cargoCell = row.insertCell(7);
+        const cargoCell = row.insertCell(11);
         const cargoType = container.cargoType || '-';
         cargoCell.textContent = EDICodes.getCargoType(cargoType);
-        row.insertCell(8).textContent = container.temperature !== null ? container.temperature.toFixed(1) : '-';
+
+        // Temperature
+        row.insertCell(12).textContent = container.temperature !== null ? container.temperature.toFixed(1) : '-';
+
+        // Peso
+        row.insertCell(13).textContent = container.weight ? container.weight.toLocaleString() : '-';
+
+        // VGM (assume same as weight if not available)
+        row.insertCell(14).textContent = container.weight ? container.weight.toLocaleString() : '-';
 
         // Status cell with badge
-        const statusCell = row.insertCell(9);
+        const statusCell = row.insertCell(15);
         const statusBadge = document.createElement('span');
 
         if (container.status === 'DAMAGED') {
@@ -380,6 +480,18 @@ function displayTable() {
         }
 
         statusCell.appendChild(statusBadge);
+
+        // Acciones
+        const actionCell = row.insertCell(16);
+        const detailBtn = document.createElement('button');
+        detailBtn.className = 'btn-view-detail';
+        detailBtn.innerHTML = '👁️';
+        detailBtn.title = 'Ver detalles';
+        detailBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            showContainerDetail(container);
+        });
+        actionCell.appendChild(detailBtn);
     });
 
     // Update pagination info
@@ -432,14 +544,26 @@ function sortTable(columnIndex) {
         switch(columnIndex) {
             case 0: return 0; // Number column (no sort)
             case 1: valueA = a.containerNumber; valueB = b.containerNumber; break;
-            case 2: valueA = a.containerType; valueB = b.containerType; break;
-            case 3: valueA = a.weight || 0; valueB = b.weight || 0; break;
-            case 4: valueA = a.bayPosition; valueB = b.bayPosition; break;
-            case 5: valueA = a.portOrigin; valueB = b.portOrigin; break;
-            case 6: valueA = a.portDestination; valueB = b.portDestination; break;
-            case 7: valueA = a.cargoType; valueB = b.cargoType; break;
-            case 8: valueA = a.temperature || -999; valueB = b.temperature || -999; break;
-            case 9: valueA = a.status; valueB = b.status; break;
+            case 2: valueA = a.bayPosition; valueB = b.bayPosition; break;
+            case 3: // Longitud
+                valueA = a.containerType?.startsWith('20') ? 20 : a.containerType?.startsWith('40') ? 40 : a.containerType?.startsWith('45') ? 45 : 0;
+                valueB = b.containerType?.startsWith('20') ? 20 : b.containerType?.startsWith('40') ? 40 : b.containerType?.startsWith('45') ? 45 : 0;
+                break;
+            case 4: // Altura
+                valueA = a.containerType?.includes('H') ? 9.5 : 8.5;
+                valueB = b.containerType?.includes('H') ? 9.5 : 8.5;
+                break;
+            case 5: valueA = a.containerType; valueB = b.containerType; break;
+            case 6: valueA = a.bay || 0; valueB = b.bay || 0; break;
+            case 7: valueA = a.row || 0; valueB = b.row || 0; break;
+            case 8: valueA = a.tier || 0; valueB = b.tier || 0; break;
+            case 9: valueA = a.portOrigin; valueB = b.portOrigin; break;
+            case 10: valueA = a.portDestination; valueB = b.portDestination; break;
+            case 11: valueA = a.cargoType; valueB = b.cargoType; break;
+            case 12: valueA = a.temperature || -999; valueB = b.temperature || -999; break;
+            case 13: valueA = a.weight || 0; valueB = b.weight || 0; break;
+            case 14: valueA = a.weight || 0; valueB = b.weight || 0; break; // VGM
+            case 15: valueA = a.status; valueB = b.status; break;
             default: return 0;
         }
 
@@ -456,6 +580,158 @@ function sortTable(columnIndex) {
     currentPage = 1;
     displayTable();
 }
+
+/**
+ * Show container detail modal
+ */
+function showContainerDetail(container) {
+    const modal = document.getElementById('containerModal');
+    const modalBody = document.getElementById('modalBody');
+
+    // Build detail content
+    const portOrigin = EDICodes.formatPort(container.portOrigin);
+    const portDest = EDICodes.formatPort(container.portDestination);
+    const typeInfo = EDICodes.formatContainerType(container.containerType);
+
+    modalBody.innerHTML = `
+        <div class="detail-section">
+            <h4>Información Principal</h4>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <label>Equipo Nro:</label>
+                    <span>${container.containerNumber}</span>
+                </div>
+                <div class="detail-item">
+                    <label>Posición:</label>
+                    <span>${container.bayPosition || '-'}</span>
+                </div>
+                <div class="detail-item">
+                    <label>Código ISO:</label>
+                    <span>${container.containerType || '-'}</span>
+                </div>
+                <div class="detail-item">
+                    <label>Tipo:</label>
+                    <span>${typeInfo.formatted}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="detail-section">
+            <h4>Ubicación en el Buque</h4>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <label>Bahía:</label>
+                    <span>${container.bay ? String(container.bay).padStart(3, '0') : '-'}</span>
+                </div>
+                <div class="detail-item">
+                    <label>Fila:</label>
+                    <span>${container.row ? String(container.row).padStart(2, '0') : '-'}</span>
+                </div>
+                <div class="detail-item">
+                    <label>Tier:</label>
+                    <span>${container.tier ? String(container.tier).padStart(2, '0') : '-'}</span>
+                </div>
+                <div class="detail-item">
+                    <label>Lado:</label>
+                    <span>${container.row % 2 === 0 ? 'STARBOARD (Estribor)' : 'PORT (Babor)'}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="detail-section">
+            <h4>Ruta y Puertos</h4>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <label>Puerto Origen:</label>
+                    <span>${portOrigin.formatted}</span>
+                </div>
+                <div class="detail-item">
+                    <label>Puerto Destino:</label>
+                    <span>${portDest.formatted}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="detail-section">
+            <h4>Carga y Peso</h4>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <label>Tipo de Carga:</label>
+                    <span>${EDICodes.getCargoType(container.cargoType || '-')}</span>
+                </div>
+                <div class="detail-item">
+                    <label>Peso (KG):</label>
+                    <span>${container.weight ? container.weight.toLocaleString() : '-'}</span>
+                </div>
+                <div class="detail-item">
+                    <label>Peso (Tons):</label>
+                    <span>${container.weight ? (container.weight / 1000).toFixed(2) : '-'}</span>
+                </div>
+                <div class="detail-item">
+                    <label>VGM (KG):</label>
+                    <span>${container.weight ? container.weight.toLocaleString() : '-'}</span>
+                </div>
+            </div>
+        </div>
+
+        ${container.temperature !== null ? `
+        <div class="detail-section">
+            <h4>Refrigeración</h4>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <label>Temperatura:</label>
+                    <span>${container.temperature.toFixed(1)}°C</span>
+                </div>
+                <div class="detail-item">
+                    <label>Tipo:</label>
+                    <span>Contenedor Refrigerado</span>
+                </div>
+            </div>
+        </div>
+        ` : ''}
+
+        <div class="detail-section">
+            <h4>Estado</h4>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <label>Estado:</label>
+                    <span class="${container.status === 'DAMAGED' ? 'status-damaged' : container.temperature !== null ? 'status-reefer' : 'status-ok'}">
+                        ${container.status === 'DAMAGED' ? 'DAMAGED' : container.temperature !== null ? 'REEFER' : 'OK'}
+                    </span>
+                </div>
+                <div class="detail-item">
+                    <label>Lleno/Vacío:</label>
+                    <span>${container.cargoType && container.cargoType !== 'Empty' ? 'Lleno' : 'Vacío'}</span>
+                </div>
+            </div>
+        </div>
+    `;
+
+    modal.style.display = 'flex';
+}
+
+// Close modal handler
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('containerModal');
+    const closeBtn = document.getElementById('closeModal');
+
+    closeBtn?.addEventListener('click', () => {
+        modal.style.display = 'none';
+    });
+
+    modal?.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.style.display = 'none';
+        }
+    });
+
+    // ESC key to close modal
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.style.display === 'flex') {
+            modal.style.display = 'none';
+        }
+    });
+});
 
 /**
  * Export to CSV
@@ -539,6 +815,413 @@ function downloadFile(content, filename, mimeType) {
 }
 
 /**
+ * Switch between main tabs (Table / Bayplan)
+ */
+function switchMainTab(tab) {
+    // Update tab buttons
+    document.querySelectorAll('.main-tab').forEach(btn => btn.classList.remove('active'));
+
+    if (tab === 'table') {
+        document.getElementById('tabTable').classList.add('active');
+        document.getElementById('statsSection').style.display = 'block';
+        document.getElementById('tableSection').style.display = 'block';
+        document.getElementById('bayplanSection').style.display = 'none';
+    } else if (tab === 'bayplan') {
+        document.getElementById('tabBayplan').classList.add('active');
+        document.getElementById('statsSection').style.display = 'none';
+        document.getElementById('tableSection').style.display = 'none';
+        document.getElementById('bayplanSection').style.display = 'block';
+
+        // Initialize bayplan on first load
+        if (!bayplanVisualizer) {
+            setTimeout(() => {
+                initializeBayplan();
+            }, 100);
+        }
+    }
+}
+
+/**
+ * Switch between Bayplan tabs (2D / 3D)
+ */
+function switchBayplanTab(tab) {
+    // Update tab buttons
+    document.querySelectorAll('.bayplan-tab').forEach(btn => btn.classList.remove('active'));
+
+    if (tab === '2d') {
+        document.getElementById('tabBayplan2D').classList.add('active');
+        document.getElementById('bayplan2DContainer').style.display = 'block';
+        document.getElementById('bayplan3DContainer').style.display = 'none';
+
+        // Generate 2D view if not already done
+        generateBayplan2D();
+    } else if (tab === '3d') {
+        document.getElementById('tabBayplan3D').classList.add('active');
+        document.getElementById('bayplan2DContainer').style.display = 'none';
+        document.getElementById('bayplan3DContainer').style.display = 'block';
+
+        // Initialize 3D if needed
+        if (!bayplanVisualizer) {
+            bayplanVisualizer = new BayplanVisualizer('bayplan3D');
+            bayplanVisualizer.loadContainers(currentData.containers);
+            populateContainerSelector();
+        }
+    }
+}
+
+/**
+ * Initialize bayplan (called when first opening bayplan tab)
+ */
+function initializeBayplan() {
+    // Generate 2D view by default
+    generateBayplan2D();
+    populateBaySelector();
+}
+
+/**
+ * Populate bay selector for 2D view
+ */
+function populateBaySelector() {
+    const baySelector = document.getElementById('baySelector');
+    baySelector.innerHTML = '<option value="all">Todas las Bahías</option>';
+
+    const bayStructure = buildBayStructure();
+    const bays = Object.keys(bayStructure).map(Number).sort((a, b) => a - b);
+
+    bays.forEach(bay => {
+        const option = document.createElement('option');
+        option.value = bay;
+        option.textContent = `Bay ${String(bay).padStart(3, '0')}`;
+        baySelector.appendChild(option);
+    });
+
+    // Add event listener for bay selection
+    baySelector.addEventListener('change', () => generateBayplan2D());
+
+    // Regenerate on window resize for responsive sizing
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            const bayplanSection = document.getElementById('bayplanSection');
+            const bayplan2DContainer = document.getElementById('bayplan2DContainer');
+            if (bayplanSection.style.display !== 'none' &&
+                bayplan2DContainer.style.display !== 'none') {
+                generateBayplan2D();
+            }
+        }, 300);
+    });
+}
+
+/**
+ * Assign colors to destination ports (same as 3D)
+ */
+function assignPortColors() {
+    const colorPalette = [
+        '#ff6b6b', // Red
+        '#4ecdc4', // Teal
+        '#ffe66d', // Yellow
+        '#95e1d3', // Mint
+        '#f38181', // Pink
+        '#aa96da', // Purple
+        '#fcbad3', // Light Pink
+        '#a8e6cf', // Light Green
+    ];
+
+    const portColors = {};
+    const uniquePorts = [...new Set(currentData.containers.map(c => c.portDestination).filter(Boolean))];
+
+    uniquePorts.forEach((port, index) => {
+        portColors[port] = colorPalette[index % colorPalette.length];
+    });
+
+    return portColors;
+}
+
+/**
+ * Generate Bayplan 2D view optimized for web
+ */
+function generateBayplan2D() {
+    const gridContainer = document.getElementById('bayplan2DGrid');
+    if (!currentData || !currentData.containers || currentData.containers.length === 0) {
+        gridContainer.innerHTML = '<p>No hay datos para mostrar</p>';
+        return;
+    }
+
+    const bayStructure = buildBayStructure();
+    const selectedBay = document.getElementById('baySelector')?.value || 'all';
+    const portColors = assignPortColors();
+
+    gridContainer.innerHTML = '';
+
+    const bays = selectedBay === 'all'
+        ? Object.keys(bayStructure).map(Number).sort((a, b) => a - b)
+        : [Number(selectedBay)];
+
+    bays.forEach(bay => {
+        const bayCard = document.createElement('div');
+        bayCard.className = 'bay-2d-card';
+
+        const bayData = bayStructure[bay];
+
+        // Sort rows like BAPLIEVIEWER: even descending (PORT), 00, odd ascending (STARBOARD)
+        // Example: 10, 08, 06, 04, 02, 00, 01, 03, 05, 07, 09
+        const rows = Object.keys(bayData).map(Number).sort((a, b) => {
+            // Separate rows into even (port), zero (center), and odd (starboard)
+            const aIsEven = a % 2 === 0 && a !== 0;
+            const bIsEven = b % 2 === 0 && b !== 0;
+            const aIsZero = a === 0;
+            const bIsZero = b === 0;
+
+            // Group: even (port) < zero (center) < odd (starboard)
+            if (aIsEven && !bIsEven) return -1;
+            if (!aIsEven && bIsEven) return 1;
+            if (aIsZero && !bIsZero) return bIsEven ? 1 : -1;
+            if (!aIsZero && bIsZero) return aIsEven ? -1 : 1;
+
+            // Within same group: even descending, odd ascending
+            if (aIsEven && bIsEven) return b - a; // Descending for PORT
+            return a - b; // Ascending for STARBOARD
+        });
+
+        // Get all tiers
+        const allTiers = new Set();
+        rows.forEach(row => {
+            Object.keys(bayData[row]).forEach(tier => allTiers.add(Number(tier)));
+        });
+        const tiers = Array.from(allTiers).sort((a, b) => b - a); // Top to bottom
+
+        // Bay header
+        const header = document.createElement('div');
+        header.className = 'bay-2d-header';
+        header.textContent = `BAY ${String(bay).padStart(3, '0')}`;
+        bayCard.appendChild(header);
+
+        // Row header (top)
+        const rowHeader = document.createElement('div');
+        rowHeader.className = 'row-header-top';
+
+        // Responsive cell sizing
+        const isMobile = window.innerWidth <= 768;
+        const tierLabelWidth = isMobile ? '30px' : '40px';
+        const cellWidth = isMobile ? '90px' : '120px';
+
+        rowHeader.style.gridTemplateColumns = `${tierLabelWidth} repeat(${rows.length}, ${cellWidth}) ${tierLabelWidth}`;
+
+        // Empty corner cells
+        rowHeader.appendChild(document.createElement('div'));
+
+        rows.forEach(row => {
+            const rowLabel = document.createElement('div');
+            rowLabel.className = 'row-label-top';
+            rowLabel.textContent = String(row).padStart(2, '0');
+            rowHeader.appendChild(rowLabel);
+        });
+
+        rowHeader.appendChild(document.createElement('div'));
+        bayCard.appendChild(rowHeader);
+
+        // Bay view container (grid with tiers as rows, rows as columns)
+        const bayView = document.createElement('div');
+        bayView.className = 'bay-2d-view';
+
+        // Draw each tier as a row
+        tiers.forEach(tier => {
+            const tierRow = document.createElement('div');
+            tierRow.className = 'tier-row';
+            tierRow.style.gridTemplateColumns = `${tierLabelWidth} repeat(${rows.length}, ${cellWidth}) ${tierLabelWidth}`;
+
+            // Left tier label
+            const tierLabelLeft = document.createElement('div');
+            tierLabelLeft.className = 'tier-label';
+            tierLabelLeft.textContent = String(tier).padStart(2, '0');
+            tierRow.appendChild(tierLabelLeft);
+
+            // Container cells for each row (column)
+            rows.forEach(row => {
+                const cell = document.createElement('div');
+
+                if (bayData[row] && bayData[row][tier]) {
+                    const container = bayData[row][tier];
+                    cell.className = 'container-cell';
+
+                    // Apply port color
+                    const portColor = portColors[container.portDestination] || '#888888';
+                    cell.style.backgroundColor = portColor;
+                    cell.style.borderColor = portColor;
+
+                    // Add special indicators for reefer/damaged
+                    if (container.temperature !== null) {
+                        cell.classList.add('reefer');
+                    } else if (container.status === 'DAMAGED') {
+                        cell.classList.add('damaged');
+                    }
+
+                    // Port destination (top, small)
+                    const destPort = EDICodes.formatPort(container.portDestination);
+                    const portLabel = document.createElement('div');
+                    portLabel.className = 'container-port-label';
+                    portLabel.textContent = `e ${destPort.code}`;
+                    cell.appendChild(portLabel);
+
+                    // Container number (center, large)
+                    const containerNum = document.createElement('div');
+                    containerNum.className = 'container-number';
+                    // Format: PREFIX + NUMBER (first 4 chars + space + rest)
+                    const cNum = container.containerNumber;
+                    const formatted = cNum.length > 4 ? cNum.substring(0, 4) + '\n' + cNum.substring(4) : cNum;
+                    containerNum.textContent = formatted;
+                    containerNum.style.whiteSpace = 'pre-line';
+                    cell.appendChild(containerNum);
+
+                    // Container type (bottom, small)
+                    const typeLabel = document.createElement('div');
+                    typeLabel.className = 'container-type-label';
+
+                    // Extract size and type from container type code
+                    let size = 'STD';
+                    const typeCode = container.containerType || '';
+                    if (typeCode.startsWith('20')) size = "20'";
+                    else if (typeCode.startsWith('40')) size = "40'";
+                    else if (typeCode.startsWith('45')) size = "45'";
+
+                    typeLabel.textContent = `${size}\n${typeCode}`;
+                    typeLabel.style.whiteSpace = 'pre-line';
+                    cell.appendChild(typeLabel);
+
+                } else {
+                    cell.className = 'container-cell empty';
+                }
+
+                tierRow.appendChild(cell);
+            });
+
+            // Right tier label
+            const tierLabelRight = document.createElement('div');
+            tierLabelRight.className = 'tier-label';
+            tierLabelRight.textContent = String(tier).padStart(2, '0');
+            tierRow.appendChild(tierLabelRight);
+
+            bayView.appendChild(tierRow);
+        });
+
+        bayCard.appendChild(bayView);
+
+        // Bottom info row (ht label on left, wt label on right)
+        const bottomInfo = document.createElement('div');
+        bottomInfo.className = 'row-bottom-info';
+        bottomInfo.style.gridTemplateColumns = `${tierLabelWidth} repeat(${rows.length}, ${cellWidth}) ${tierLabelWidth}`;
+
+        const htLabel = document.createElement('div');
+        htLabel.className = 'info-label';
+        htLabel.textContent = 'ht';
+        bottomInfo.appendChild(htLabel);
+
+        // Empty cells for each row
+        rows.forEach(() => {
+            bottomInfo.appendChild(document.createElement('div'));
+        });
+
+        const wtLabel = document.createElement('div');
+        wtLabel.className = 'info-label';
+        wtLabel.textContent = 'wt';
+        bottomInfo.appendChild(wtLabel);
+
+        bayCard.appendChild(bottomInfo);
+
+        // Legend for this bay
+        const legend = document.createElement('div');
+        legend.className = 'bay-2d-legend';
+
+        const legendTitle = document.createElement('h4');
+        legendTitle.textContent = 'Leyenda - Puertos de Destino';
+        legend.appendChild(legendTitle);
+
+        const legendItems = document.createElement('div');
+        legendItems.className = 'legend-items-2d';
+
+        // Get unique ports in this bay
+        const portsInBay = new Set();
+        rows.forEach(row => {
+            tiers.forEach(tier => {
+                if (bayData[row] && bayData[row][tier]) {
+                    portsInBay.add(bayData[row][tier].portDestination);
+                }
+            });
+        });
+
+        // Create legend items
+        Array.from(portsInBay).sort().forEach(port => {
+            if (!port) return;
+
+            const item = document.createElement('div');
+            item.className = 'legend-item-2d';
+
+            const colorBox = document.createElement('div');
+            colorBox.className = 'legend-color-box';
+            colorBox.style.backgroundColor = portColors[port];
+
+            const portInfo = EDICodes.formatPort(port);
+            const text = document.createElement('span');
+            text.textContent = portInfo.formatted;
+
+            item.appendChild(colorBox);
+            item.appendChild(text);
+            legendItems.appendChild(item);
+        });
+
+        legend.appendChild(legendItems);
+        bayCard.appendChild(legend);
+
+        gridContainer.appendChild(bayCard);
+
+        // Sync horizontal scroll between header, body, and footer
+        syncHorizontalScroll(rowHeader, bayView, bottomInfo);
+    });
+
+    console.log('Generated 2D Bayplan for', bays.length, 'bays');
+}
+
+/**
+ * Synchronize horizontal scroll between multiple elements
+ */
+function syncHorizontalScroll(...elements) {
+    let isScrolling = false;
+
+    elements.forEach((element, index) => {
+        element.addEventListener('scroll', function() {
+            if (!isScrolling) {
+                isScrolling = true;
+                const scrollLeft = this.scrollLeft;
+
+                elements.forEach((el, i) => {
+                    if (i !== index) {
+                        el.scrollLeft = scrollLeft;
+                    }
+                });
+
+                requestAnimationFrame(() => {
+                    isScrolling = false;
+                });
+            }
+        });
+    });
+}
+
+/**
+ * Set bayplan 3D view
+ */
+function setBayplanView(viewType, clickedButton) {
+    if (bayplanVisualizer) {
+        bayplanVisualizer.setView(viewType);
+
+        // Update active button state
+        document.querySelectorAll('.btn-view').forEach(btn => btn.classList.remove('active'));
+        clickedButton.classList.add('active');
+    }
+}
+
+/**
  * Reset application
  */
 function resetApp() {
@@ -547,18 +1230,417 @@ function resetApp() {
     filteredData = [];
     currentPage = 1;
 
+    // Reset 3D visualizer
+    if (bayplanVisualizer) {
+        bayplanVisualizer.clearContainers();
+        bayplanVisualizer = null;
+    }
+
     // Reset UI
     document.getElementById('fileInput').value = '';
     document.getElementById('uploadZone').style.display = 'block';
     document.getElementById('fileLoadedInfo').style.display = 'none';
     document.getElementById('voyageSection').style.display = 'none';
     document.getElementById('statsSection').style.display = 'none';
+    document.getElementById('bayplanSection').style.display = 'none';
     document.getElementById('tableSection').style.display = 'none';
 
     // Reset filters
     document.getElementById('searchInput').value = '';
     document.getElementById('filterDestination').value = '';
     document.getElementById('filterStatus').value = '';
+}
+
+/**
+ * Populate container selector with all containers
+ */
+function populateContainerSelector() {
+    console.log('Populating container selector...');
+    console.log('Current data:', currentData);
+    console.log('Containers count:', currentData?.containers?.length);
+
+    if (!currentData || !currentData.containers || currentData.containers.length === 0) {
+        console.error('No containers available to populate selector');
+        return;
+    }
+
+    const containerSelect = document.getElementById('containerSelect');
+    if (!containerSelect) {
+        console.error('Container select element not found');
+        return;
+    }
+
+    // Clear existing options (except first)
+    containerSelect.innerHTML = '<option value="">Seleccionar contenedor...</option>';
+
+    // Sort containers by number
+    const sortedContainers = [...currentData.containers].sort((a, b) =>
+        a.containerNumber.localeCompare(b.containerNumber)
+    );
+
+    console.log('Adding', sortedContainers.length, 'containers to selector');
+
+    // Add container options
+    sortedContainers.forEach(container => {
+        const option = document.createElement('option');
+        option.value = container.containerNumber;
+        const portDest = EDICodes.formatPort(container.portDestination);
+        option.textContent = `${container.containerNumber} - ${portDest.code} - Bay ${container.bayPosition}`;
+        option.dataset.containerNumber = container.containerNumber;
+        containerSelect.appendChild(option);
+    });
+
+    console.log('Container selector populated with', containerSelect.options.length - 1, 'containers');
+}
+
+/**
+ * Filter container list based on search input
+ */
+function filterContainerList() {
+    const searchTerm = document.getElementById('containerSearch').value.toLowerCase();
+    const containerSelect = document.getElementById('containerSelect');
+    const options = containerSelect.querySelectorAll('option');
+
+    let visibleCount = 0;
+
+    options.forEach((option, index) => {
+        if (index === 0) return; // Skip first "Seleccionar..." option
+
+        const text = option.textContent.toLowerCase();
+        const matches = text.includes(searchTerm);
+
+        option.style.display = matches ? '' : 'none';
+        if (matches) visibleCount++;
+    });
+
+    // If only one match, auto-select it
+    if (visibleCount === 1 && searchTerm.length > 0) {
+        const visibleOption = Array.from(options).find((opt, idx) =>
+            idx > 0 && opt.style.display !== 'none'
+        );
+        if (visibleOption) {
+            containerSelect.value = visibleOption.value;
+            selectContainer();
+        }
+    }
+}
+
+/**
+ * Select and focus on a specific container
+ */
+function selectContainer() {
+    const containerSelect = document.getElementById('containerSelect');
+    const containerNumber = containerSelect.value;
+
+    if (!containerNumber) {
+        // Reset highlight if no container selected
+        if (bayplanVisualizer) {
+            bayplanVisualizer.resetHighlight();
+        }
+        return;
+    }
+
+    // Highlight and focus on selected container
+    if (bayplanVisualizer) {
+        bayplanVisualizer.highlightContainer(containerNumber);
+        bayplanVisualizer.focusOnContainer(containerNumber);
+    }
+}
+
+/**
+ * Reset container selection and view
+ */
+function resetContainerSelection() {
+    // Clear search input
+    document.getElementById('containerSearch').value = '';
+
+    // Reset selector
+    document.getElementById('containerSelect').value = '';
+
+    // Show all options
+    const options = document.getElementById('containerSelect').querySelectorAll('option');
+    options.forEach(option => {
+        option.style.display = '';
+    });
+
+    // Reset 3D view
+    if (bayplanVisualizer) {
+        bayplanVisualizer.resetHighlight();
+        bayplanVisualizer.centerCameraOnContainers();
+    }
+}
+
+/**
+ * Generate Bayplan PDF in 2D format
+ */
+function generateBayplanPDF() {
+    if (!currentData || !currentData.containers || currentData.containers.length === 0) {
+        alert('No hay datos para generar el PDF');
+        return;
+    }
+
+    // Get jsPDF from window
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+    });
+
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    // Header
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('BAYPLAN - CONTAINER STOWAGE PLAN', pageWidth / 2, 15, { align: 'center' });
+
+    // Voyage information
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    let yPos = 25;
+
+    const voyage = currentData.voyage;
+    doc.text(`Vessel: ${voyage.vesselName || '-'}`, 15, yPos);
+    doc.text(`Voyage: ${voyage.voyageNumber || '-'}`, 80, yPos);
+
+    const portOrigin = EDICodes.formatPort(voyage.portOrigin);
+    const portDest = EDICodes.formatPort(voyage.portDestination);
+
+    yPos += 5;
+    doc.text(`From: ${portOrigin.formatted}`, 15, yPos);
+    doc.text(`To: ${portDest.formatted}`, 80, yPos);
+    doc.text(`ETA: ${voyage.arrivalDate || '-'}`, 150, yPos);
+
+    yPos += 5;
+    doc.text(`Total Containers: ${currentData.containers.length}`, 15, yPos);
+    const stats = parser.getStatistics();
+    doc.text(`Total Weight: ${stats.totalWeight} Tons`, 80, yPos);
+    doc.text(`Reefers: ${stats.reeferContainers}`, 150, yPos);
+
+    // Build bay/row structure
+    const bayStructure = buildBayStructure();
+
+    // Draw bayplan grid
+    yPos = 45;
+    drawBayplanGrid(doc, bayStructure, yPos);
+
+    // Save PDF
+    const fileName = `Bayplan_${voyage.vesselName || 'Vessel'}_${voyage.voyageNumber || 'Voyage'}.pdf`;
+    doc.save(fileName);
+}
+
+/**
+ * Build bay structure from containers
+ */
+function buildBayStructure() {
+    const structure = {};
+
+    currentData.containers.forEach(container => {
+        if (!container.bay || !container.row || !container.tier) return;
+
+        const bayKey = container.bay;
+        if (!structure[bayKey]) {
+            structure[bayKey] = {};
+        }
+
+        const rowKey = container.row;
+        if (!structure[bayKey][rowKey]) {
+            structure[bayKey][rowKey] = {};
+        }
+
+        structure[bayKey][rowKey][container.tier] = container;
+    });
+
+    return structure;
+}
+
+/**
+ * Draw bayplan grid on PDF - One page per Bay
+ */
+function drawBayplanGrid(doc, bayStructure, startY) {
+    // Get all unique bays
+    const bays = Object.keys(bayStructure).map(Number).sort((a, b) => a - b);
+
+    // Draw each bay on its own page
+    bays.forEach((bay, bayIndex) => {
+        if (bayIndex > 0) {
+            doc.addPage();
+        }
+
+        // Bay header
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`BAY ${String(bay).padStart(3, '0')}`, doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
+
+        // Get all rows and tiers for this bay
+        const bayData = bayStructure[bay];
+        const rows = Object.keys(bayData).map(Number).sort((a, b) => a - b);
+
+        // Get all tiers across all rows in this bay
+        const allTiers = new Set();
+        rows.forEach(row => {
+            Object.keys(bayData[row]).forEach(tier => allTiers.add(Number(tier)));
+        });
+        const tiers = Array.from(allTiers).sort((a, b) => a - b);
+
+        // Draw the bay view (frontal/lateral)
+        drawBayView(doc, bay, bayData, rows, tiers, 25);
+
+        // Add legend on first page
+        if (bayIndex === 0) {
+            drawLegend(doc, doc.internal.pageSize.getHeight() - 20);
+        }
+    });
+}
+
+/**
+ * Draw a single bay view (frontal cross-section)
+ */
+function drawBayView(doc, bayNumber, bayData, rows, tiers, startY) {
+    const cellWidth = 25;
+    const cellHeight = 15;
+    const startX = 30;
+
+    // Calculate center for row positioning
+    const maxRow = Math.max(...rows);
+    const minRow = Math.min(...rows);
+    const centerRow = (maxRow + minRow) / 2;
+
+    // Title
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Row →', startX - 15, startY);
+    doc.text('Tier ↓', startX - 15, startY + 15);
+
+    let yPos = startY + 5;
+
+    // Draw tier labels and grid
+    tiers.forEach((tier, tierIdx) => {
+        const rowY = yPos + (tierIdx * cellHeight);
+
+        // Tier label (left side)
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.text(String(tier).padStart(2, '0'), startX - 10, rowY + cellHeight / 2 + 2);
+
+        // Draw cells for each row at this tier
+        rows.forEach((row, rowIdx) => {
+            // Calculate X position based on row number (port/starboard)
+            // Even rows = starboard (right), Odd rows = port (left)
+            const isStarboard = row % 2 === 0;
+            const rowOffset = Math.floor(row / 2);
+
+            let x;
+            if (row === 0) {
+                // Center row
+                x = startX + (rows.length * cellWidth) / 2;
+            } else if (isStarboard) {
+                // Starboard side (right)
+                x = startX + (rows.length * cellWidth) / 2 + (rowOffset * cellWidth);
+            } else {
+                // Port side (left)
+                x = startX + (rows.length * cellWidth) / 2 - (rowOffset * cellWidth);
+            }
+
+            // Draw cell border
+            doc.setDrawColor(200, 200, 200);
+            doc.rect(x, rowY, cellWidth, cellHeight);
+
+            // Check if there's a container at this position
+            if (bayData[row] && bayData[row][tier]) {
+                const container = bayData[row][tier];
+
+                // Background color based on status
+                if (container.temperature !== null) {
+                    doc.setFillColor(220, 240, 255); // Light blue for reefer
+                    doc.rect(x, rowY, cellWidth, cellHeight, 'F');
+                    doc.rect(x, rowY, cellWidth, cellHeight); // Redraw border
+                } else if (container.status === 'DAMAGED') {
+                    doc.setFillColor(255, 230, 230); // Light red for damaged
+                    doc.rect(x, rowY, cellWidth, cellHeight, 'F');
+                    doc.rect(x, rowY, cellWidth, cellHeight); // Redraw border
+                }
+
+                // Container information
+                doc.setTextColor(0, 0, 0);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(6);
+
+                // Container number (abbreviated)
+                const containerNum = container.containerNumber.substring(0, 11);
+                doc.text(containerNum, x + 1, rowY + 4);
+
+                // Destination port
+                const destPort = EDICodes.formatPort(container.portDestination);
+                doc.text(destPort.code, x + 1, rowY + 8);
+
+                // Weight
+                const weight = container.weight ? (container.weight / 1000).toFixed(1) + 'T' : '-';
+                doc.text(weight, x + 1, rowY + 12);
+
+                // Status indicators
+                if (container.temperature !== null) {
+                    doc.setFontSize(5);
+                    doc.text(`❄${container.temperature.toFixed(0)}°C`, x + cellWidth - 12, rowY + 4);
+                }
+            }
+        });
+    });
+
+    // Row labels at bottom
+    yPos += tiers.length * cellHeight + 5;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+
+    rows.forEach((row, rowIdx) => {
+        const isStarboard = row % 2 === 0;
+        const rowOffset = Math.floor(row / 2);
+
+        let x;
+        if (row === 0) {
+            x = startX + (rows.length * cellWidth) / 2;
+        } else if (isStarboard) {
+            x = startX + (rows.length * cellWidth) / 2 + (rowOffset * cellWidth);
+        } else {
+            x = startX + (rows.length * cellWidth) / 2 - (rowOffset * cellWidth);
+        }
+
+        doc.text(String(row).padStart(2, '0'), x + cellWidth / 2, yPos, { align: 'center' });
+    });
+
+    // Side labels
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    const midY = startY + 5 + (tiers.length * cellHeight) / 2;
+    doc.text('← PORT', startX - 25, midY);
+    doc.text('STARBOARD →', startX + rows.length * cellWidth + 5, midY);
+}
+
+/**
+ * Draw legend
+ */
+function drawLegend(doc, yPos) {
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Legend:', 15, yPos);
+
+    yPos += 5;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+
+    // Reefer
+    doc.setFillColor(220, 240, 255);
+    doc.rect(15, yPos - 3, 8, 4, 'F');
+    doc.rect(15, yPos - 3, 8, 4);
+    doc.text('Reefer Container (with temperature)', 25, yPos);
+
+    // Damaged
+    yPos += 6;
+    doc.setFillColor(255, 230, 230);
+    doc.rect(15, yPos - 3, 8, 4, 'F');
+    doc.rect(15, yPos - 3, 8, 4);
+    doc.text('Damaged Container', 25, yPos);
 }
 
 /**

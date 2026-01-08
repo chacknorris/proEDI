@@ -158,6 +158,12 @@ class EDIParser {
             case '147': // Stowage location (bay position)
                 if (currentContainer) {
                     currentContainer.bayPosition = location;
+                    // Parse bay position into bay, row, tier (format: BBBRRTT)
+                    if (location && location.length >= 6) {
+                        currentContainer.bay = parseInt(location.substring(0, 3)) || 0;
+                        currentContainer.row = parseInt(location.substring(3, 5)) || 0;
+                        currentContainer.tier = parseInt(location.substring(5, 7)) || 0;
+                    }
                 }
                 break;
 
@@ -221,6 +227,9 @@ class EDIParser {
             containerNumber: parts[2] || '',
             containerType: parts[3] || '',
             bayPosition: '',
+            bay: 0,
+            row: 0,
+            tier: 0,
             portOrigin: '',
             portDestination: '',
             weight: null,
