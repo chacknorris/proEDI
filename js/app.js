@@ -1371,7 +1371,7 @@ function resetContainerSelection() {
 }
 
 /**
- * Generate Bayplan PDF in 2D format
+ * Generate Bayplan PDF in 2D format (matching web view)
  */
 function generateBayplanPDF() {
     if (!currentData || !currentData.containers || currentData.containers.length === 0) {
@@ -1379,8 +1379,11 @@ function generateBayplanPDF() {
         return;
     }
 
-    // Get jsPDF from window
     const { jsPDF } = window.jspdf;
+    const bayStructure = buildBayStructure();
+    const portColors = assignPortColors();
+    const bays = Object.keys(bayStructure).map(Number).sort((a, b) => a - b);
+
     const doc = new jsPDF({
         orientation: 'landscape',
         unit: 'mm',
@@ -1390,44 +1393,232 @@ function generateBayplanPDF() {
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
 
-    // Header
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text('BAYPLAN - CONTAINER STOWAGE PLAN', pageWidth / 2, 15, { align: 'center' });
+    bays.forEach((bay, bayIndex) => {
+        if (bayIndex > 0) {
+            doc.addPage();
+        }
 
-    // Voyage information
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    let yPos = 25;
+        // Header
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('BAYPLAN - CONTAINER STOWAGE PLAN', pageWidth / 2, 10, { align: 'center' });
 
-    const voyage = currentData.voyage;
-    doc.text(`Vessel: ${voyage.vesselName || '-'}`, 15, yPos);
-    doc.text(`Voyage: ${voyage.voyageNumber || '-'}`, 80, yPos);
+        // Voyage info (compact)
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        const voyage = currentData.voyage;
+        doc.text(`${voyage.vesselName || '-'} | Voyage: ${voyage.voyageNumber || '-'} | Bay: ${String(bay).padStart(3, '0')}`, pageWidth / 2, 16, { align: 'center' });
 
-    const portOrigin = EDICodes.formatPort(voyage.portOrigin);
-    const portDest = EDICodes.formatPort(voyage.portDestination);
+        // Bay data
+        const bayData = bayStructure[bay];
 
-    yPos += 5;
-    doc.text(`From: ${portOrigin.formatted}`, 15, yPos);
-    doc.text(`To: ${portDest.formatted}`, 80, yPos);
-    doc.text(`ETA: ${voyage.arrivalDate || '-'}`, 150, yPos);
+        // Sort rows like web view
+        const rows = Object.keys(bayData).map(Number).sort((a, b) => {
+            const aIsEven = a % 2 === 0 && a !== 0;
+            const bIsEven = b % 2 === 0 && b !== 0;
+            const aIsZero = a === 0;
+            const bIsZero = b === 0;
 
-    yPos += 5;
-    doc.text(`Total Containers: ${currentData.containers.length}`, 15, yPos);
-    const stats = parser.getStatistics();
-    doc.text(`Total Weight: ${stats.totalWeight} Tons`, 80, yPos);
-    doc.text(`Reefers: ${stats.reeferContainers}`, 150, yPos);
+            if (aIsEven && !bIsEven) return -1;
+            if (!aIsEven && bIsEven) return 1;
+            if (aIsZero && !bIsZero) return bIsEven ? 1 : -1;
+            if (!aIsZero && bIsZero) return aIsEven ? -1 : 1;
 
-    // Build bay/row structure
-    const bayStructure = buildBayStructure();
+            if (aIsEven && bIsEven) return b - a;
+            return a - b;
+        });
 
-    // Draw bayplan grid
-    yPos = 45;
-    drawBayplanGrid(doc, bayStructure, yPos);
+        // Get all tiers
+        const allTiers = new Set();
+        rows.forEach(row => {
+            Object.keys(bayData[row]).forEach(tier => allTiers.add(Number(tier)));
+        });
+        const tiers = Array.from(allTiers).sort((a, b) => b - a);
+
+        // Calculate dimensions
+        const cellWidth = Math.min(25, (pageWidth - 30) / (rows.length + 2));
+        const cellHeight = Math.min(18, (pageHeight - 60) / (tiers.length + 2));
+        const startX = 15;
+        const startY = 25;
+        const tierLabelWidth = 8;
+
+        // Draw row headers (top)
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'bold');
+        rows.forEach((row, i) => {
+            const x = startX + tierLabelWidth + (i * cellWidth);
+            doc.setFillColor(45, 55, 72);
+            doc.rect(x, startY, cellWidth, 5, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.text(String(row).padStart(2, '0'), x + cellWidth / 2, startY + 3.5, { align: 'center' });
+        });
+
+        // Draw grid with containers
+        tiers.forEach((tier, tierIdx) => {
+            const y = startY + 5 + (tierIdx * cellHeight);
+
+            // Left tier label
+            doc.setFillColor(74, 85, 104);
+            doc.rect(startX, y, tierLabelWidth, cellHeight, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFont('helvetica', 'bold');
+            doc.text(String(tier).padStart(2, '0'), startX + tierLabelWidth / 2, y + cellHeight / 2 + 1, { align: 'center' });
+
+            // Container cells
+            rows.forEach((row, rowIdx) => {
+                const x = startX + tierLabelWidth + (rowIdx * cellWidth);
+
+                if (bayData[row] && bayData[row][tier]) {
+                    const container = bayData[row][tier];
+
+                    // Background color
+                    const portColor = portColors[container.portDestination] || '#888888';
+                    const rgb = hexToRgb(portColor);
+                    doc.setFillColor(rgb.r, rgb.g, rgb.b);
+                    doc.rect(x, y, cellWidth, cellHeight, 'F');
+
+                    // Border (thicker for reefer/damaged)
+                    if (container.temperature !== null) {
+                        doc.setDrawColor(44, 82, 130);
+                        doc.setLineWidth(0.5);
+                    } else if (container.status === 'DAMAGED') {
+                        doc.setDrawColor(197, 48, 48);
+                        doc.setLineWidth(0.5);
+                    } else {
+                        doc.setDrawColor(203, 213, 224);
+                        doc.setLineWidth(0.2);
+                    }
+                    doc.rect(x, y, cellWidth, cellHeight);
+
+                    // Container content (text)
+                    doc.setTextColor(26, 32, 44);
+
+                    // Port (top, small)
+                    doc.setFontSize(5);
+                    doc.setFont('helvetica', 'normal');
+                    const destPort = EDICodes.formatPort(container.portDestination);
+                    doc.text(`e ${destPort.code}`, x + cellWidth / 2, y + 2, { align: 'center' });
+
+                    // Container number (center, large)
+                    doc.setFontSize(6);
+                    doc.setFont('helvetica', 'bold');
+                    const cNum = container.containerNumber;
+                    const line1 = cNum.substring(0, 4);
+                    const line2 = cNum.substring(4);
+                    doc.text(line1, x + cellWidth / 2, y + cellHeight / 2 - 0.5, { align: 'center' });
+                    doc.text(line2, x + cellWidth / 2, y + cellHeight / 2 + 2, { align: 'center' });
+
+                    // Type (bottom, small)
+                    doc.setFontSize(5);
+                    doc.setFont('helvetica', 'normal');
+                    const typeCode = container.containerType || '';
+                    let size = 'STD';
+                    if (typeCode.startsWith('20')) size = "20'";
+                    else if (typeCode.startsWith('40')) size = "40'";
+                    else if (typeCode.startsWith('45')) size = "45'";
+                    doc.text(size, x + cellWidth / 2, y + cellHeight - 3, { align: 'center' });
+                    doc.text(typeCode.substring(0, 6), x + cellWidth / 2, y + cellHeight - 0.5, { align: 'center' });
+
+                } else {
+                    // Empty cell
+                    doc.setFillColor(247, 250, 252);
+                    doc.rect(x, y, cellWidth, cellHeight, 'F');
+                    doc.setDrawColor(203, 213, 224);
+                    doc.setLineWidth(0.1);
+                    doc.rect(x, y, cellWidth, cellHeight);
+                }
+            });
+
+            // Right tier label
+            const rightX = startX + tierLabelWidth + (rows.length * cellWidth);
+            doc.setFillColor(74, 85, 104);
+            doc.rect(rightX, y, tierLabelWidth, cellHeight, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.text(String(tier).padStart(2, '0'), rightX + tierLabelWidth / 2, y + cellHeight / 2 + 1, { align: 'center' });
+        });
+
+        // Bottom labels (ht, wt)
+        const bottomY = startY + 5 + (tiers.length * cellHeight);
+        doc.setFillColor(113, 128, 150);
+        doc.rect(startX, bottomY, tierLabelWidth, 5, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(6);
+        doc.text('ht', startX + tierLabelWidth / 2, bottomY + 3.5, { align: 'center' });
+
+        const rightBottomX = startX + tierLabelWidth + (rows.length * cellWidth);
+        doc.setFillColor(113, 128, 150);
+        doc.rect(rightBottomX, bottomY, tierLabelWidth, 5, 'F');
+        doc.text('wt', rightBottomX + tierLabelWidth / 2, bottomY + 3.5, { align: 'center' });
+
+        // Legend
+        const legendY = bottomY + 10;
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(45, 55, 72);
+        doc.text('LEYENDA - PUERTOS DE DESTINO', startX, legendY);
+
+        // Get unique ports in this bay
+        const portsInBay = new Set();
+        rows.forEach(row => {
+            tiers.forEach(tier => {
+                if (bayData[row] && bayData[row][tier]) {
+                    portsInBay.add(bayData[row][tier].portDestination);
+                }
+            });
+        });
+
+        let legendX = startX;
+        let legendYPos = legendY + 5;
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'normal');
+
+        Array.from(portsInBay).sort().forEach((port, idx) => {
+            if (!port) return;
+
+            const portColor = portColors[port];
+            const rgb = hexToRgb(portColor);
+
+            // Color box
+            doc.setFillColor(rgb.r, rgb.g, rgb.b);
+            doc.rect(legendX, legendYPos - 2.5, 4, 3, 'F');
+            doc.setDrawColor(0, 0, 0);
+            doc.setLineWidth(0.1);
+            doc.rect(legendX, legendYPos - 2.5, 4, 3);
+
+            // Port name
+            const portInfo = EDICodes.formatPort(port);
+            doc.setTextColor(45, 55, 72);
+            doc.text(portInfo.formatted, legendX + 5, legendYPos);
+
+            // Move to next position (2 columns)
+            legendX += 65;
+            if (legendX > pageWidth - 60) {
+                legendX = startX;
+                legendYPos += 5;
+            }
+        });
+
+        // Footer
+        doc.setFontSize(7);
+        doc.setTextColor(100, 100, 100);
+        doc.text('ProEDI - by B&M', pageWidth / 2, pageHeight - 5, { align: 'center' });
+    });
 
     // Save PDF
-    const fileName = `Bayplan_${voyage.vesselName || 'Vessel'}_${voyage.voyageNumber || 'Voyage'}.pdf`;
+    const fileName = `Bayplan_${currentData.voyage.vesselName || 'Vessel'}_${currentData.voyage.voyageNumber || 'Voyage'}.pdf`;
     doc.save(fileName);
+}
+
+/**
+ * Convert hex color to RGB
+ */
+function hexToRgb(hex) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+    } : { r: 136, g: 136, b: 136 };
 }
 
 /**
@@ -1453,194 +1644,6 @@ function buildBayStructure() {
     });
 
     return structure;
-}
-
-/**
- * Draw bayplan grid on PDF - One page per Bay
- */
-function drawBayplanGrid(doc, bayStructure, startY) {
-    // Get all unique bays
-    const bays = Object.keys(bayStructure).map(Number).sort((a, b) => a - b);
-
-    // Draw each bay on its own page
-    bays.forEach((bay, bayIndex) => {
-        if (bayIndex > 0) {
-            doc.addPage();
-        }
-
-        // Bay header
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.text(`BAY ${String(bay).padStart(3, '0')}`, doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' });
-
-        // Get all rows and tiers for this bay
-        const bayData = bayStructure[bay];
-        const rows = Object.keys(bayData).map(Number).sort((a, b) => a - b);
-
-        // Get all tiers across all rows in this bay
-        const allTiers = new Set();
-        rows.forEach(row => {
-            Object.keys(bayData[row]).forEach(tier => allTiers.add(Number(tier)));
-        });
-        const tiers = Array.from(allTiers).sort((a, b) => a - b);
-
-        // Draw the bay view (frontal/lateral)
-        drawBayView(doc, bay, bayData, rows, tiers, 25);
-
-        // Add legend on first page
-        if (bayIndex === 0) {
-            drawLegend(doc, doc.internal.pageSize.getHeight() - 20);
-        }
-    });
-}
-
-/**
- * Draw a single bay view (frontal cross-section)
- */
-function drawBayView(doc, bayNumber, bayData, rows, tiers, startY) {
-    const cellWidth = 25;
-    const cellHeight = 15;
-    const startX = 30;
-
-    // Calculate center for row positioning
-    const maxRow = Math.max(...rows);
-    const minRow = Math.min(...rows);
-    const centerRow = (maxRow + minRow) / 2;
-
-    // Title
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Row →', startX - 15, startY);
-    doc.text('Tier ↓', startX - 15, startY + 15);
-
-    let yPos = startY + 5;
-
-    // Draw tier labels and grid
-    tiers.forEach((tier, tierIdx) => {
-        const rowY = yPos + (tierIdx * cellHeight);
-
-        // Tier label (left side)
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(8);
-        doc.text(String(tier).padStart(2, '0'), startX - 10, rowY + cellHeight / 2 + 2);
-
-        // Draw cells for each row at this tier
-        rows.forEach((row, rowIdx) => {
-            // Calculate X position based on row number (port/starboard)
-            // Even rows = starboard (right), Odd rows = port (left)
-            const isStarboard = row % 2 === 0;
-            const rowOffset = Math.floor(row / 2);
-
-            let x;
-            if (row === 0) {
-                // Center row
-                x = startX + (rows.length * cellWidth) / 2;
-            } else if (isStarboard) {
-                // Starboard side (right)
-                x = startX + (rows.length * cellWidth) / 2 + (rowOffset * cellWidth);
-            } else {
-                // Port side (left)
-                x = startX + (rows.length * cellWidth) / 2 - (rowOffset * cellWidth);
-            }
-
-            // Draw cell border
-            doc.setDrawColor(200, 200, 200);
-            doc.rect(x, rowY, cellWidth, cellHeight);
-
-            // Check if there's a container at this position
-            if (bayData[row] && bayData[row][tier]) {
-                const container = bayData[row][tier];
-
-                // Background color based on status
-                if (container.temperature !== null) {
-                    doc.setFillColor(220, 240, 255); // Light blue for reefer
-                    doc.rect(x, rowY, cellWidth, cellHeight, 'F');
-                    doc.rect(x, rowY, cellWidth, cellHeight); // Redraw border
-                } else if (container.status === 'DAMAGED') {
-                    doc.setFillColor(255, 230, 230); // Light red for damaged
-                    doc.rect(x, rowY, cellWidth, cellHeight, 'F');
-                    doc.rect(x, rowY, cellWidth, cellHeight); // Redraw border
-                }
-
-                // Container information
-                doc.setTextColor(0, 0, 0);
-                doc.setFont('helvetica', 'normal');
-                doc.setFontSize(6);
-
-                // Container number (abbreviated)
-                const containerNum = container.containerNumber.substring(0, 11);
-                doc.text(containerNum, x + 1, rowY + 4);
-
-                // Destination port
-                const destPort = EDICodes.formatPort(container.portDestination);
-                doc.text(destPort.code, x + 1, rowY + 8);
-
-                // Weight
-                const weight = container.weight ? (container.weight / 1000).toFixed(1) + 'T' : '-';
-                doc.text(weight, x + 1, rowY + 12);
-
-                // Status indicators
-                if (container.temperature !== null) {
-                    doc.setFontSize(5);
-                    doc.text(`❄${container.temperature.toFixed(0)}°C`, x + cellWidth - 12, rowY + 4);
-                }
-            }
-        });
-    });
-
-    // Row labels at bottom
-    yPos += tiers.length * cellHeight + 5;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7);
-
-    rows.forEach((row, rowIdx) => {
-        const isStarboard = row % 2 === 0;
-        const rowOffset = Math.floor(row / 2);
-
-        let x;
-        if (row === 0) {
-            x = startX + (rows.length * cellWidth) / 2;
-        } else if (isStarboard) {
-            x = startX + (rows.length * cellWidth) / 2 + (rowOffset * cellWidth);
-        } else {
-            x = startX + (rows.length * cellWidth) / 2 - (rowOffset * cellWidth);
-        }
-
-        doc.text(String(row).padStart(2, '0'), x + cellWidth / 2, yPos, { align: 'center' });
-    });
-
-    // Side labels
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    const midY = startY + 5 + (tiers.length * cellHeight) / 2;
-    doc.text('← PORT', startX - 25, midY);
-    doc.text('STARBOARD →', startX + rows.length * cellWidth + 5, midY);
-}
-
-/**
- * Draw legend
- */
-function drawLegend(doc, yPos) {
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Legend:', 15, yPos);
-
-    yPos += 5;
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-
-    // Reefer
-    doc.setFillColor(220, 240, 255);
-    doc.rect(15, yPos - 3, 8, 4, 'F');
-    doc.rect(15, yPos - 3, 8, 4);
-    doc.text('Reefer Container (with temperature)', 25, yPos);
-
-    // Damaged
-    yPos += 6;
-    doc.setFillColor(255, 230, 230);
-    doc.rect(15, yPos - 3, 8, 4, 'F');
-    doc.rect(15, yPos - 3, 8, 4);
-    doc.text('Damaged Container', 25, yPos);
 }
 
 /**
