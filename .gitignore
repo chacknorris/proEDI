@@ -1,5 +1,15 @@
 # EDI files (pueden contener información sensible)
 *.edi
+*.EDI
+
+# PDF documents from EDI
+*.pdf
+
+# Screenshots
+screenshots/
+.screenshots/
+*screenshot*/
+*Screenshot*/
 
 # MacOS
 .DS_Store
