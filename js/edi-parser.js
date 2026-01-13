@@ -180,6 +180,14 @@ class EDIParser {
                 break;
 
             case '147': // Stowage location (bay position)
+                // If current container already has a position, this is a new container
+                // Save current and start fresh (BAPLIE 2.0/2.2 pattern)
+                if (currentContainer && currentContainer.bayPosition) {
+                    // Save previous container
+                    this.data.containers.push(currentContainer);
+                    currentContainer = null;
+                }
+
                 if (currentContainer) {
                     currentContainer.bayPosition = location;
                     // Parse bay position into bay, row, tier (format: BBBRRTT)
