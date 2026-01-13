@@ -35,6 +35,7 @@ class EDIParser {
             };
 
             let currentContainer = null;
+            let pendingData = {}; // Store data that comes before EQD (BAPLIE 2.0/2.2 format)
 
             // Parse each segment
             for (let segment of segments) {
@@ -51,7 +52,7 @@ class EDIParser {
                         break;
 
                     case 'LOC':
-                        this.parseLOC(parts, currentContainer);
+                        this.parseLOC(parts, currentContainer, pendingData);
                         break;
 
                     case 'DTM':
@@ -59,7 +60,18 @@ class EDIParser {
                         break;
 
                     case 'RFF':
-                        this.parseRFF(parts);
+                        this.parseRFF(parts, currentContainer, pendingData);
+                        break;
+
+                    case 'GDS':
+                        // Cargo description (may come before EQD in BAPLIE 2.0/2.2)
+                        if (currentContainer) {
+                            if (parts.length >= 2) {
+                                currentContainer.cargoType = parts[1];
+                            }
+                        } else {
+                            pendingData.cargoType = parts.length >= 2 ? parts[1] : '';
+                        }
                         break;
 
                     case 'EQD':
@@ -69,24 +81,36 @@ class EDIParser {
                         }
                         // Create new container
                         currentContainer = this.parseEQD(parts);
+
+                        // Apply pending data to new container (BAPLIE 2.0/2.2 format)
+                        if (pendingData.bayPosition) {
+                            currentContainer.bayPosition = pendingData.bayPosition;
+                            currentContainer.bay = pendingData.bay;
+                            currentContainer.row = pendingData.row;
+                            currentContainer.tier = pendingData.tier;
+                        }
+                        if (pendingData.portOrigin) currentContainer.portOrigin = pendingData.portOrigin;
+                        if (pendingData.portDestination) currentContainer.portDestination = pendingData.portDestination;
+                        if (pendingData.weight !== undefined) currentContainer.weight = pendingData.weight;
+                        if (pendingData.cargoType) currentContainer.cargoType = pendingData.cargoType;
+                        if (pendingData.temperature !== undefined) currentContainer.temperature = pendingData.temperature;
+                        if (pendingData.status) currentContainer.status = pendingData.status;
+                        if (pendingData.bookingRef) currentContainer.bookingRef = pendingData.bookingRef;
+
+                        // Clear pending data
+                        pendingData = {};
                         break;
 
                     case 'MEA':
-                        if (currentContainer) {
-                            this.parseMEA(parts, currentContainer);
-                        }
+                        this.parseMEA(parts, currentContainer, pendingData);
                         break;
 
                     case 'FTX':
-                        if (currentContainer) {
-                            this.parseFTX(parts, currentContainer);
-                        }
+                        this.parseFTX(parts, currentContainer, pendingData);
                         break;
 
                     case 'TMP':
-                        if (currentContainer) {
-                            this.parseTMP(parts, currentContainer);
-                        }
+                        this.parseTMP(parts, currentContainer, pendingData);
                         break;
 
                     case 'NAD':
@@ -140,7 +164,7 @@ class EDIParser {
     /**
      * Parse LOC segment (Location)
      */
-    parseLOC(parts, currentContainer) {
+    parseLOC(parts, currentContainer, pendingData = {}) {
         if (parts.length < 3) return;
 
         const locType = parts[1];
@@ -164,18 +188,30 @@ class EDIParser {
                         currentContainer.row = parseInt(location.substring(3, 5)) || 0;
                         currentContainer.tier = parseInt(location.substring(5, 7)) || 0;
                     }
+                } else {
+                    // Store in pending data (BAPLIE 2.0/2.2 format)
+                    pendingData.bayPosition = location;
+                    if (location && location.length >= 6) {
+                        pendingData.bay = parseInt(location.substring(0, 3)) || 0;
+                        pendingData.row = parseInt(location.substring(3, 5)) || 0;
+                        pendingData.tier = parseInt(location.substring(5, 7)) || 0;
+                    }
                 }
                 break;
 
             case '9': // Port of origin for container
                 if (currentContainer) {
                     currentContainer.portOrigin = location;
+                } else {
+                    pendingData.portOrigin = location;
                 }
                 break;
 
             case '11': // Port of destination for container
                 if (currentContainer) {
                     currentContainer.portDestination = location;
+                } else {
+                    pendingData.portDestination = location;
                 }
                 break;
         }
@@ -207,13 +243,20 @@ class EDIParser {
     /**
      * Parse RFF segment (Reference)
      */
-    parseRFF(parts) {
+    parseRFF(parts, currentContainer, pendingData = {}) {
         if (parts.length >= 2) {
             const refInfo = parts[1].split(':');
             if (refInfo[0] === 'VON' && refInfo[1]) {
                 // Voyage reference number
                 if (!this.data.voyage.voyageNumber) {
                     this.data.voyage.voyageNumber = refInfo[1];
+                }
+            } else if (refInfo[0] === 'BN' && refInfo[1]) {
+                // Booking reference (may come before EQD in BAPLIE 2.0/2.2)
+                if (currentContainer) {
+                    currentContainer.bookingRef = refInfo[1];
+                } else {
+                    pendingData.bookingRef = refInfo[1];
                 }
             }
         }
@@ -243,11 +286,21 @@ class EDIParser {
     /**
      * Parse MEA segment (Measurements - Weight)
      */
-    parseMEA(parts, container) {
-        if (parts.length >= 4 && parts[1] === 'WT') {
+    parseMEA(parts, container, pendingData = {}) {
+        if (parts.length >= 4) {
+            const meaType = parts[1];
             const weightInfo = parts[3].split(':');
-            if (weightInfo.length >= 2) {
-                container.weight = parseInt(weightInfo[1]) || 0;
+
+            if (meaType === 'WT' || meaType === 'VGM') {
+                // Weight or VGM (Verified Gross Mass)
+                if (weightInfo.length >= 2) {
+                    const weight = parseInt(weightInfo[1]) || 0;
+                    if (container) {
+                        container.weight = weight;
+                    } else {
+                        pendingData.weight = weight;
+                    }
+                }
             }
         }
     }
@@ -255,21 +308,34 @@ class EDIParser {
     /**
      * Parse FTX segment (Free Text - Cargo description)
      */
-    parseFTX(parts, container) {
+    parseFTX(parts, container, pendingData = {}) {
         if (parts.length >= 4) {
             const ftxType = parts[1];
             const description = parts[3];
 
             if (ftxType === 'AAA') {
                 // Cargo type
-                container.cargoType = description || '';
+                if (container) {
+                    container.cargoType = description || '';
+                } else {
+                    // Store most recent cargo description (don't overwrite GDS)
+                    if (!pendingData.cargoType) {
+                        pendingData.cargoType = description || '';
+                    }
+                }
             } else if (ftxType === 'AAI' && description === 'DAMAGED') {
                 // Damaged status
-                container.status = 'DAMAGED';
+                if (container) {
+                    container.status = 'DAMAGED';
+                } else {
+                    pendingData.status = 'DAMAGED';
+                }
             } else if (ftxType === 'CLR') {
                 // Clearance (cargo description)
-                if (!container.cargoType) {
+                if (container && !container.cargoType) {
                     container.cargoType = description || '';
+                } else if (!container && !pendingData.cargoType) {
+                    pendingData.cargoType = description || '';
                 }
             }
         }
@@ -278,13 +344,21 @@ class EDIParser {
     /**
      * Parse TMP segment (Temperature)
      */
-    parseTMP(parts, container) {
+    parseTMP(parts, container, pendingData = {}) {
         if (parts.length >= 3 && parts[1] === '2') {
             const tempInfo = parts[2].split(':');
             if (tempInfo.length >= 1) {
-                container.temperature = parseFloat(tempInfo[0]) || null;
-                if (container.temperature !== null) {
-                    container.status = 'REEFER';
+                const temperature = parseFloat(tempInfo[0]) || null;
+                if (container) {
+                    container.temperature = temperature;
+                    if (container.temperature !== null) {
+                        container.status = 'REEFER';
+                    }
+                } else {
+                    pendingData.temperature = temperature;
+                    if (pendingData.temperature !== null) {
+                        pendingData.status = 'REEFER';
+                    }
                 }
             }
         }
