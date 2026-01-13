@@ -708,6 +708,19 @@ function showContainerDetail(container) {
     `;
 
     modal.style.display = 'flex';
+
+    // Switch to Bayplan tab and 3D view, then focus on container
+    switchMainTab('bayplan');
+    switchBayplanTab('3d');
+
+    // Highlight and focus on the container in 3D view
+    if (bayplanVisualizer) {
+        // Add a small delay to ensure 3D view is ready
+        setTimeout(() => {
+            bayplanVisualizer.highlightContainer(container.containerNumber);
+            bayplanVisualizer.focusOnContainer(container.containerNumber);
+        }, 300);
+    }
 }
 
 // Close modal handler
@@ -1340,10 +1353,17 @@ function selectContainer() {
         return;
     }
 
+    // Switch to Bayplan tab and 3D view
+    switchMainTab('bayplan');
+    switchBayplanTab('3d');
+
     // Highlight and focus on selected container
     if (bayplanVisualizer) {
-        bayplanVisualizer.highlightContainer(containerNumber);
-        bayplanVisualizer.focusOnContainer(containerNumber);
+        // Add a small delay to ensure 3D view is ready
+        setTimeout(() => {
+            bayplanVisualizer.highlightContainer(containerNumber);
+            bayplanVisualizer.focusOnContainer(containerNumber);
+        }, 300);
     }
 }
 
