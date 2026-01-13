@@ -39,8 +39,11 @@ class EDIParser {
 
             // Parse each segment
             for (let segment of segments) {
+                segment = segment.trim(); // Remove whitespace and newlines
+                if (!segment) continue;
+
                 const parts = segment.split('+');
-                const tag = parts[0];
+                const tag = parts[0].trim();
 
                 switch (tag) {
                     case 'UNB':
