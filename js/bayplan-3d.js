@@ -553,10 +553,10 @@ class BayplanVisualizer {
                 mesh.material.transparent = false;
                 mesh.material.emissiveIntensity = 0.3;
             } else {
-                // Dimmed containers
-                mesh.material.opacity = 0.2;
+                // Dimmed containers - more transparent
+                mesh.material.opacity = 0.08;
                 mesh.material.transparent = true;
-                mesh.material.emissiveIntensity = 0.05;
+                mesh.material.emissiveIntensity = 0.02;
             }
         });
     }
