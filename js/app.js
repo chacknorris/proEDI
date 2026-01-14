@@ -871,14 +871,23 @@ function switchBayplanTab(tab) {
     } else if (tab === '3d') {
         document.getElementById('tabBayplan3D').classList.add('active');
         document.getElementById('bayplan2DContainer').style.display = 'none';
-        document.getElementById('bayplan3DContainer').style.display = 'block';
+        document.getElementById('bayplan3DContainer').style.display = 'flex';
 
         // Initialize 3D if needed
         if (!bayplanVisualizer) {
             bayplanVisualizer = new BayplanVisualizer('bayplan3D');
             bayplanVisualizer.loadContainers(currentData.containers);
             populateContainerSelector();
-            populateSidebar();
+        }
+
+        // Always populate sidebar when showing 3D view
+        populateSidebar();
+
+        // Resize canvas to fit new layout
+        if (bayplanVisualizer) {
+            setTimeout(() => {
+                bayplanVisualizer.onWindowResize();
+            }, 100);
         }
     }
 }
@@ -1343,14 +1352,24 @@ function filterContainerList() {
  * Populate sidebar with containers grouped by bay
  */
 function populateSidebar() {
+    console.log('populateSidebar called');
+    console.log('currentData:', currentData);
+
     if (!currentData || !currentData.containers || currentData.containers.length === 0) {
+        console.error('No container data available');
         return;
     }
 
     const sidebarContent = document.getElementById('sidebarContent');
     const sidebarTotal = document.getElementById('sidebarTotal');
 
-    if (!sidebarContent || !sidebarTotal) return;
+    console.log('sidebarContent:', sidebarContent);
+    console.log('sidebarTotal:', sidebarTotal);
+
+    if (!sidebarContent || !sidebarTotal) {
+        console.error('Sidebar elements not found');
+        return;
+    }
 
     // Update total
     sidebarTotal.textContent = `${currentData.containers.length} contenedores`;

@@ -48,7 +48,9 @@ class BayplanVisualizer {
         this.scene.fog = new THREE.Fog(0xf0f4f8, 100, 500);
 
         // Create camera
-        const aspect = this.canvas.parentElement.clientWidth / 600;
+        const width = this.canvas.parentElement.clientWidth;
+        const height = this.canvas.parentElement.clientHeight || 600;
+        const aspect = width / height;
         this.camera = new THREE.PerspectiveCamera(60, aspect, 0.1, 1000);
         this.camera.position.set(50, 40, 50);
         this.camera.lookAt(0, 0, 0);
@@ -58,7 +60,7 @@ class BayplanVisualizer {
             canvas: this.canvas,
             antialias: true
         });
-        this.renderer.setSize(this.canvas.parentElement.clientWidth, 600);
+        this.renderer.setSize(width, height);
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -471,7 +473,7 @@ class BayplanVisualizer {
      */
     onWindowResize() {
         const width = this.canvas.parentElement.clientWidth;
-        const height = 600;
+        const height = this.canvas.parentElement.clientHeight;
 
         this.camera.aspect = width / height;
         this.camera.updateProjectionMatrix();
