@@ -195,7 +195,8 @@ class BayplanVisualizer {
 
         // Create container meshes
         this.containers.forEach(container => {
-            if (container.bay && container.row && container.tier) {
+            // Check for valid bay/row/tier (allow 0 as valid value)
+            if (container.bay != null && container.row != null && container.tier != null) {
                 this.createContainerMesh(container);
             }
         });

@@ -144,13 +144,14 @@ class EDIParser {
                 }
 
                 // Check for duplicate position (two containers at same physical location)
-                if (container.bay && container.row && container.tier && seenPositions.has(positionKey)) {
+                // Allow 0 as valid value for bay/row/tier
+                if (container.bay != null && container.row != null && container.tier != null && seenPositions.has(positionKey)) {
                     console.warn(`Duplicate position removed: ${container.containerNumber} at Bay ${container.bay}, Row ${container.row}, Tier ${container.tier}`);
                     return false;
                 }
 
                 seenNumbers.add(container.containerNumber);
-                if (container.bay && container.row && container.tier) {
+                if (container.bay != null && container.row != null && container.tier != null) {
                     seenPositions.add(positionKey);
                 }
                 return true;

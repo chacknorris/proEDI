@@ -1841,7 +1841,8 @@ function buildBayStructure() {
     const positionConflicts = [];
 
     currentData.containers.forEach(container => {
-        if (!container.bay || !container.row || !container.tier) return;
+        // Check for valid bay/row/tier (allow 0 as valid value)
+        if (container.bay == null || container.row == null || container.tier == null) return;
 
         const bayKey = container.bay;
         if (!structure[bayKey]) {
