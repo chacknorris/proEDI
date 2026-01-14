@@ -711,19 +711,6 @@ function showContainerDetail(container) {
     `;
 
     modal.style.display = 'flex';
-
-    // Switch to Bayplan tab and 3D view, then focus on container
-    switchMainTab('bayplan');
-    switchBayplanTab('3d');
-
-    // Highlight and focus on the container in 3D view
-    if (bayplanVisualizer) {
-        // Add a small delay to ensure 3D view is ready
-        setTimeout(() => {
-            bayplanVisualizer.highlightContainer(container.containerNumber);
-            bayplanVisualizer.focusOnContainer(container.containerNumber);
-        }, 100);
-    }
 }
 
 // Close modal handler
@@ -1385,26 +1372,16 @@ function initializeSidebarEvents() {
  * Populate sidebar with containers grouped by bay
  */
 function populateSidebar() {
-    console.log('populateSidebar called');
-    console.log('currentData:', currentData);
-
     if (!currentData || !currentData.containers || currentData.containers.length === 0) {
-        console.error('No container data available');
         return;
     }
 
     const sidebarContent = document.getElementById('sidebarContent');
     const sidebarTotal = document.getElementById('sidebarTotal');
 
-    console.log('sidebarContent:', sidebarContent);
-    console.log('sidebarTotal:', sidebarTotal);
-
     if (!sidebarContent || !sidebarTotal) {
-        console.error('Sidebar elements not found');
         return;
     }
-
-    console.log('Creating sidebar with', currentData.containers.length, 'containers');
 
     // Update total
     sidebarTotal.textContent = `${currentData.containers.length} contenedores`;
@@ -1421,32 +1398,12 @@ function populateSidebar() {
 
     // Sort bays
     const sortedBays = Object.keys(bayGroups).map(Number).sort((a, b) => a - b);
-    console.log('Bay groups:', sortedBays.length, 'bays');
 
-    // Clear sidebar
-    sidebarContent.innerHTML = '';
+    // Build HTML in one go (much faster than DOM manipulation)
+    let html = '';
 
-    // Create bay groups
     sortedBays.forEach(bay => {
         const containers = bayGroups[bay];
-        const bayGroup = document.createElement('div');
-        bayGroup.className = 'sidebar-bay-group';
-
-        // Bay header
-        const bayHeader = document.createElement('div');
-        bayHeader.className = 'bay-group-header';
-        bayHeader.innerHTML = `
-            <span>Bay ${String(bay).padStart(3, '0')}</span>
-            <span class="bay-count">${containers.length}</span>
-        `;
-        bayHeader.addEventListener('click', () => {
-            const bayContainers = bayGroup.querySelector('.bay-containers');
-            bayContainers.classList.toggle('collapsed');
-        });
-
-        // Container list
-        const bayContainers = document.createElement('div');
-        bayContainers.className = 'bay-containers';
 
         // Sort containers by position
         containers.sort((a, b) => {
@@ -1454,39 +1411,58 @@ function populateSidebar() {
             return a.tier - b.tier;
         });
 
-        containers.forEach(container => {
-            const item = document.createElement('div');
-            item.className = 'sidebar-container-item';
-            item.dataset.containerNumber = container.containerNumber;
+        html += `
+            <div class="sidebar-bay-group">
+                <div class="bay-group-header" data-bay="${bay}">
+                    <span>Bay ${String(bay).padStart(3, '0')}</span>
+                    <span class="bay-count">${containers.length}</span>
+                </div>
+                <div class="bay-containers">
+        `;
 
+        containers.forEach(container => {
             const portDest = EDICodes.formatPort(container.portDestination);
             const size = container.containerType?.startsWith('20') ? "20'" :
                         container.containerType?.startsWith('40') ? "40'" :
                         container.containerType?.startsWith('45') ? "45'" : 'STD';
 
-            item.innerHTML = `
-                <div class="container-item-number">${container.containerNumber}</div>
-                <div class="container-item-details">
-                    <span class="container-item-badge">${container.bayPosition || '-'}</span>
-                    <span class="container-item-badge">→ ${portDest.code}</span>
-                    <span class="container-item-badge">${size}</span>
-                    ${container.temperature !== null ? '<span class="container-item-badge">❄️</span>' : ''}
+            html += `
+                <div class="sidebar-container-item" data-container-number="${container.containerNumber}">
+                    <div class="container-item-number">${container.containerNumber}</div>
+                    <div class="container-item-details">
+                        <span class="container-item-badge">${container.bayPosition || '-'}</span>
+                        <span class="container-item-badge">→ ${portDest.code}</span>
+                        <span class="container-item-badge">${size}</span>
+                        ${container.temperature !== null ? '<span class="container-item-badge">❄️</span>' : ''}
+                    </div>
                 </div>
             `;
-
-            item.addEventListener('click', () => {
-                selectContainerFromSidebar(container.containerNumber);
-            });
-
-            bayContainers.appendChild(item);
         });
 
-        bayGroup.appendChild(bayHeader);
-        bayGroup.appendChild(bayContainers);
-        sidebarContent.appendChild(bayGroup);
+        html += `
+                </div>
+            </div>
+        `;
     });
 
-    console.log('Sidebar populated with', sidebarContent.children.length, 'bay groups');
+    // Single DOM update
+    sidebarContent.innerHTML = html;
+
+    // Add event listeners after rendering (using event delegation)
+    sidebarContent.addEventListener('click', (e) => {
+        const bayHeader = e.target.closest('.bay-group-header');
+        if (bayHeader) {
+            const bayContainers = bayHeader.nextElementSibling;
+            bayContainers.classList.toggle('collapsed');
+            return;
+        }
+
+        const containerItem = e.target.closest('.sidebar-container-item');
+        if (containerItem) {
+            const containerNumber = containerItem.dataset.containerNumber;
+            selectContainerFromSidebar(containerNumber);
+        }
+    });
 }
 
 /**
