@@ -129,6 +129,23 @@ class EDIParser {
                 this.data.containers.push(currentContainer);
             }
 
+            // Deduplicate containers by container number (safety net)
+            const seen = new Set();
+            const originalCount = this.data.containers.length;
+            this.data.containers = this.data.containers.filter(container => {
+                if (seen.has(container.containerNumber)) {
+                    console.warn('Duplicate container removed:', container.containerNumber);
+                    return false;
+                }
+                seen.add(container.containerNumber);
+                return true;
+            });
+
+            const duplicatesRemoved = originalCount - this.data.containers.length;
+            if (duplicatesRemoved > 0) {
+                console.log(`Deduplication: Removed ${duplicatesRemoved} duplicate container(s)`);
+            }
+
             return this.data;
 
         } catch (error) {
@@ -183,15 +200,8 @@ class EDIParser {
                 break;
 
             case '147': // Stowage location (bay position)
-                // If current container already has a position, this is a new container
-                // Save current and start fresh (BAPLIE 2.0/2.2 pattern)
-                if (currentContainer && currentContainer.bayPosition) {
-                    // Save previous container
-                    this.data.containers.push(currentContainer);
-                    currentContainer = null;
-                }
-
                 if (currentContainer) {
+                    // Update existing container position
                     currentContainer.bayPosition = location;
                     // Parse bay position into bay, row, tier (format: BBBRRTT)
                     if (location && location.length >= 6) {
@@ -200,7 +210,7 @@ class EDIParser {
                         currentContainer.tier = parseInt(location.substring(5, 7)) || 0;
                     }
                 } else {
-                    // Store in pending data (BAPLIE 2.0/2.2 format)
+                    // Store in pending data (BAPLIE 2.0/2.2 format - LOC comes before EQD)
                     pendingData.bayPosition = location;
                     if (location && location.length >= 6) {
                         pendingData.bay = parseInt(location.substring(0, 3)) || 0;
