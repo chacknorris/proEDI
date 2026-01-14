@@ -30,8 +30,6 @@ function initializeApp() {
  * Setup all event listeners
  */
 function setupEventListeners() {
-    console.log('=== Setting up event listeners ===');
-
     const uploadZone = document.getElementById('uploadZone');
     const fileInput = document.getElementById('fileInput');
     const btnSelect = document.getElementById('btnSelect');
@@ -43,8 +41,6 @@ function setupEventListeners() {
     const exportCSV = document.getElementById('exportCSV');
     const prevPage = document.getElementById('prevPage');
     const nextPage = document.getElementById('nextPage');
-
-    console.log('Basic elements found:', {uploadZone, fileInput, btnSelect});
 
     // Drag and drop on upload zone
     uploadZone.addEventListener('dragover', handleDragOver);
@@ -105,8 +101,6 @@ function setupEventListeners() {
     const containerSearch = document.getElementById('containerSearch');
     const containerSelect = document.getElementById('containerSelect');
 
-    console.log('Bayplan 3D controls found:', {viewTop, viewFront, viewSide, viewIso, containerSearch, containerSelect});
-
     if (viewTop) viewTop.addEventListener('click', () => setBayplanView('top', viewTop));
     if (viewFront) viewFront.addEventListener('click', () => setBayplanView('front', viewFront));
     if (viewSide) viewSide.addEventListener('click', () => setBayplanView('side', viewSide));
@@ -121,15 +115,8 @@ function setupEventListeners() {
 
     // Export Bayplan PDF
     const exportBayplanPDF = document.getElementById('exportBayplanPDF');
-    console.log('Export Bayplan PDF button:', exportBayplanPDF);
     if (exportBayplanPDF) {
-        exportBayplanPDF.addEventListener('click', () => {
-            console.log('Export PDF button clicked!');
-            generateBayplanPDF();
-        });
-        console.log('PDF export button listener attached');
-    } else {
-        console.error('Export Bayplan PDF button not found in DOM');
+        exportBayplanPDF.addEventListener('click', generateBayplanPDF);
     }
 
     // View Cube controls
@@ -1601,16 +1588,12 @@ function resetContainerSelection() {
  * Generate Bayplan PDF in 2D format (matching web view)
  */
 function generateBayplanPDF() {
-    console.log('=== generateBayplanPDF called ===');
     try {
-        console.log('1. Checking currentData:', currentData);
         if (!currentData || !currentData.containers || currentData.containers.length === 0) {
-            console.error('No data available');
             alert('No hay datos para generar el PDF');
             return;
         }
 
-        console.log('2. Checking jsPDF library:', window.jspdf);
         // Check if jsPDF is loaded
         if (!window.jspdf) {
             alert('Error: La librería jsPDF no está cargada. Por favor, recarga la página.');
@@ -1618,25 +1601,15 @@ function generateBayplanPDF() {
             return;
         }
 
-        console.log('3. Building bay structure...');
         const { jsPDF } = window.jspdf;
         const bayStructure = buildBayStructure();
-        console.log('Bay structure:', bayStructure);
-
         const portColors = assignPortColors();
-        console.log('Port colors:', portColors);
-
         const bays = Object.keys(bayStructure).map(Number).sort((a, b) => a - b);
-        console.log('Bays to export:', bays);
 
         if (bays.length === 0) {
-            console.error('No bays with containers');
             alert('No hay bahías con contenedores para exportar');
             return;
         }
-
-        console.log('4. Creating jsPDF document...');
-        console.log('Generating PDF for', bays.length, 'bays');
 
         const doc = new jsPDF({
             orientation: 'landscape',
@@ -1859,16 +1832,11 @@ function generateBayplanPDF() {
     });
 
         // Save PDF
-        console.log('5. Saving PDF...');
         const fileName = `Bayplan_${currentData.voyage.vesselName || 'Vessel'}_${currentData.voyage.voyageNumber || 'Voyage'}.pdf`;
-        console.log('File name:', fileName);
         doc.save(fileName);
         console.log('PDF generated successfully:', fileName);
-        alert('PDF generado exitosamente: ' + fileName);
     } catch (error) {
-        console.error('=== ERROR in generateBayplanPDF ===');
-        console.error('Error details:', error);
-        console.error('Error stack:', error.stack);
+        console.error('Error generating PDF:', error);
         alert('Error al generar el PDF: ' + error.message);
     }
 }
