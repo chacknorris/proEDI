@@ -115,7 +115,9 @@ function setupEventListeners() {
 
     // Export Bayplan PDF
     const exportBayplanPDF = document.getElementById('exportBayplanPDF');
-    exportBayplanPDF.addEventListener('click', generateBayplanPDF);
+    if (exportBayplanPDF) {
+        exportBayplanPDF.addEventListener('click', generateBayplanPDF);
+    }
 
     // View Cube controls
     const viewCube = document.getElementById('viewCube');
@@ -1586,21 +1588,36 @@ function resetContainerSelection() {
  * Generate Bayplan PDF in 2D format (matching web view)
  */
 function generateBayplanPDF() {
-    if (!currentData || !currentData.containers || currentData.containers.length === 0) {
-        alert('No hay datos para generar el PDF');
-        return;
-    }
+    try {
+        if (!currentData || !currentData.containers || currentData.containers.length === 0) {
+            alert('No hay datos para generar el PDF');
+            return;
+        }
 
-    const { jsPDF } = window.jspdf;
-    const bayStructure = buildBayStructure();
-    const portColors = assignPortColors();
-    const bays = Object.keys(bayStructure).map(Number).sort((a, b) => a - b);
+        // Check if jsPDF is loaded
+        if (!window.jspdf) {
+            alert('Error: La librería jsPDF no está cargada. Por favor, recarga la página.');
+            console.error('jsPDF library not loaded');
+            return;
+        }
 
-    const doc = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-        format: 'a4'
-    });
+        const { jsPDF } = window.jspdf;
+        const bayStructure = buildBayStructure();
+        const portColors = assignPortColors();
+        const bays = Object.keys(bayStructure).map(Number).sort((a, b) => a - b);
+
+        if (bays.length === 0) {
+            alert('No hay bahías con contenedores para exportar');
+            return;
+        }
+
+        console.log('Generating PDF for', bays.length, 'bays');
+
+        const doc = new jsPDF({
+            orientation: 'landscape',
+            unit: 'mm',
+            format: 'a4'
+        });
 
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
@@ -1816,9 +1833,14 @@ function generateBayplanPDF() {
         doc.text('ProEDI - by B&M', pageWidth / 2, pageHeight - 5, { align: 'center' });
     });
 
-    // Save PDF
-    const fileName = `Bayplan_${currentData.voyage.vesselName || 'Vessel'}_${currentData.voyage.voyageNumber || 'Voyage'}.pdf`;
-    doc.save(fileName);
+        // Save PDF
+        const fileName = `Bayplan_${currentData.voyage.vesselName || 'Vessel'}_${currentData.voyage.voyageNumber || 'Voyage'}.pdf`;
+        doc.save(fileName);
+        console.log('PDF generated successfully:', fileName);
+    } catch (error) {
+        console.error('Error generating PDF:', error);
+        alert('Error al generar el PDF: ' + error.message);
+    }
 }
 
 /**
