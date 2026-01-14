@@ -129,21 +129,36 @@ class EDIParser {
                 this.data.containers.push(currentContainer);
             }
 
-            // Deduplicate containers by container number (safety net)
-            const seen = new Set();
+            // Deduplicate containers by container number AND position (safety net)
+            const seenNumbers = new Set();
+            const seenPositions = new Set();
             const originalCount = this.data.containers.length;
+
             this.data.containers = this.data.containers.filter(container => {
-                if (seen.has(container.containerNumber)) {
-                    console.warn('Duplicate container removed:', container.containerNumber);
+                const positionKey = `${container.bay}-${container.row}-${container.tier}`;
+
+                // Check for duplicate container number
+                if (seenNumbers.has(container.containerNumber)) {
+                    console.warn('Duplicate container number removed:', container.containerNumber);
                     return false;
                 }
-                seen.add(container.containerNumber);
+
+                // Check for duplicate position (two containers at same physical location)
+                if (container.bay && container.row && container.tier && seenPositions.has(positionKey)) {
+                    console.warn(`Duplicate position removed: ${container.containerNumber} at Bay ${container.bay}, Row ${container.row}, Tier ${container.tier}`);
+                    return false;
+                }
+
+                seenNumbers.add(container.containerNumber);
+                if (container.bay && container.row && container.tier) {
+                    seenPositions.add(positionKey);
+                }
                 return true;
             });
 
             const duplicatesRemoved = originalCount - this.data.containers.length;
             if (duplicatesRemoved > 0) {
-                console.log(`Deduplication: Removed ${duplicatesRemoved} duplicate container(s)`);
+                console.log(`Deduplication: Removed ${duplicatesRemoved} duplicate(s) - ${this.data.containers.length} unique containers remain`);
             }
 
             return this.data;

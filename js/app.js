@@ -1838,6 +1838,7 @@ function hexToRgb(hex) {
  */
 function buildBayStructure() {
     const structure = {};
+    const positionConflicts = [];
 
     currentData.containers.forEach(container => {
         if (!container.bay || !container.row || !container.tier) return;
@@ -1852,8 +1853,25 @@ function buildBayStructure() {
             structure[bayKey][rowKey] = {};
         }
 
+        // Check if position is already occupied
+        if (structure[bayKey][rowKey][container.tier]) {
+            const existing = structure[bayKey][rowKey][container.tier];
+            positionConflicts.push({
+                position: `Bay ${bayKey}, Row ${rowKey}, Tier ${container.tier}`,
+                existing: existing.containerNumber,
+                new: container.containerNumber
+            });
+        }
+
         structure[bayKey][rowKey][container.tier] = container;
     });
+
+    if (positionConflicts.length > 0) {
+        console.warn(`Found ${positionConflicts.length} position conflicts in 2D bayplan:`);
+        positionConflicts.forEach(conflict => {
+            console.warn(`  ${conflict.position}: ${conflict.existing} overwritten by ${conflict.new}`);
+        });
+    }
 
     return structure;
 }
