@@ -129,31 +129,47 @@
 
             <!-- 3D Bayplan View -->
             <div class="bayplan-3d-container" id="bayplan3DContainer" style="display: none;">
-                <div class="bayplan-controls">
-                    <input type="text" id="containerSearch" class="container-search" placeholder="🔍 Buscar contenedor...">
-                    <select id="containerSelect" class="container-select">
-                        <option value="">Seleccionar contenedor...</option>
-                    </select>
-                    <button class="btn-view" id="btnResetSelection">🔄 Resetear</button>
-                    <button class="btn-view" id="viewTop">Vista Superior</button>
-                    <button class="btn-view" id="viewFront">Vista Frontal</button>
-                    <button class="btn-view" id="viewSide">Vista Lateral</button>
-                    <button class="btn-view active" id="viewIso">Vista Isométrica</button>
-                </div>
-                <div class="bayplan-viewer" id="bayplanViewer">
-                    <canvas id="bayplan3D"></canvas>
-                    <div class="bayplan-tooltip" id="bayplanTooltip"></div>
-                    <div class="view-cube" id="viewCube">
-                        <div class="cube-face cube-front" data-view="front">F</div>
-                        <div class="cube-face cube-back" data-view="back">B</div>
-                        <div class="cube-face cube-left" data-view="side">L</div>
-                        <div class="cube-face cube-right" data-view="sideR">R</div>
-                        <div class="cube-face cube-top" data-view="top">T</div>
-                        <div class="cube-face cube-bottom" data-view="bottom">Bo</div>
+                <!-- Sidebar with container list -->
+                <div class="bayplan-sidebar" id="bayplanSidebar">
+                    <div class="sidebar-header">
+                        <h3>Contenedores</h3>
+                        <button class="btn-toggle-sidebar" id="btnToggleSidebar">◀</button>
                     </div>
-                    <div class="bayplan-legend">
-                        <h4>Leyenda</h4>
-                        <div class="legend-items" id="legendItems"></div>
+                    <div class="sidebar-search">
+                        <input type="text" id="sidebarSearch" placeholder="🔍 Buscar contenedor..." class="sidebar-search-input">
+                    </div>
+                    <div class="sidebar-stats" id="sidebarStats">
+                        <span id="sidebarTotal">0 contenedores</span>
+                    </div>
+                    <div class="sidebar-content" id="sidebarContent">
+                        <!-- Container list will be populated here -->
+                    </div>
+                </div>
+
+                <!-- Main 3D viewer area -->
+                <div class="bayplan-main-area">
+                    <div class="bayplan-controls">
+                        <button class="btn-view" id="btnResetSelection">🔄 Resetear</button>
+                        <button class="btn-view" id="viewTop">Vista Superior</button>
+                        <button class="btn-view" id="viewFront">Vista Frontal</button>
+                        <button class="btn-view" id="viewSide">Vista Lateral</button>
+                        <button class="btn-view active" id="viewIso">Vista Isométrica</button>
+                    </div>
+                    <div class="bayplan-viewer" id="bayplanViewer">
+                        <canvas id="bayplan3D"></canvas>
+                        <div class="bayplan-tooltip" id="bayplanTooltip"></div>
+                        <div class="view-cube" id="viewCube">
+                            <div class="cube-face cube-front" data-view="front">F</div>
+                            <div class="cube-face cube-back" data-view="back">B</div>
+                            <div class="cube-face cube-left" data-view="side">L</div>
+                            <div class="cube-face cube-right" data-view="sideR">R</div>
+                            <div class="cube-face cube-top" data-view="top">T</div>
+                            <div class="cube-face cube-bottom" data-view="bottom">Bo</div>
+                        </div>
+                        <div class="bayplan-legend">
+                            <h4>Leyenda</h4>
+                            <div class="legend-items" id="legendItems"></div>
+                        </div>
                     </div>
                 </div>
             </div>

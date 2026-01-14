@@ -878,6 +878,7 @@ function switchBayplanTab(tab) {
             bayplanVisualizer = new BayplanVisualizer('bayplan3D');
             bayplanVisualizer.loadContainers(currentData.containers);
             populateContainerSelector();
+            populateSidebar();
         }
     }
 }
@@ -1335,6 +1336,180 @@ function filterContainerList() {
             containerSelect.value = visibleOption.value;
             selectContainer();
         }
+    }
+}
+
+/**
+ * Populate sidebar with containers grouped by bay
+ */
+function populateSidebar() {
+    if (!currentData || !currentData.containers || currentData.containers.length === 0) {
+        return;
+    }
+
+    const sidebarContent = document.getElementById('sidebarContent');
+    const sidebarTotal = document.getElementById('sidebarTotal');
+
+    if (!sidebarContent || !sidebarTotal) return;
+
+    // Update total
+    sidebarTotal.textContent = `${currentData.containers.length} contenedores`;
+
+    // Group containers by bay
+    const bayGroups = {};
+    currentData.containers.forEach(container => {
+        const bay = container.bay || 0;
+        if (!bayGroups[bay]) {
+            bayGroups[bay] = [];
+        }
+        bayGroups[bay].push(container);
+    });
+
+    // Sort bays
+    const sortedBays = Object.keys(bayGroups).map(Number).sort((a, b) => a - b);
+
+    // Clear sidebar
+    sidebarContent.innerHTML = '';
+
+    // Create bay groups
+    sortedBays.forEach(bay => {
+        const containers = bayGroups[bay];
+        const bayGroup = document.createElement('div');
+        bayGroup.className = 'sidebar-bay-group';
+
+        // Bay header
+        const bayHeader = document.createElement('div');
+        bayHeader.className = 'bay-group-header';
+        bayHeader.innerHTML = `
+            <span>Bay ${String(bay).padStart(3, '0')}</span>
+            <span class="bay-count">${containers.length}</span>
+        `;
+        bayHeader.addEventListener('click', () => {
+            const bayContainers = bayGroup.querySelector('.bay-containers');
+            bayContainers.classList.toggle('collapsed');
+        });
+
+        // Container list
+        const bayContainers = document.createElement('div');
+        bayContainers.className = 'bay-containers';
+
+        // Sort containers by position
+        containers.sort((a, b) => {
+            if (a.row !== b.row) return a.row - b.row;
+            return a.tier - b.tier;
+        });
+
+        containers.forEach(container => {
+            const item = document.createElement('div');
+            item.className = 'sidebar-container-item';
+            item.dataset.containerNumber = container.containerNumber;
+
+            const portDest = EDICodes.formatPort(container.portDestination);
+            const size = container.containerType?.startsWith('20') ? "20'" :
+                        container.containerType?.startsWith('40') ? "40'" :
+                        container.containerType?.startsWith('45') ? "45'" : 'STD';
+
+            item.innerHTML = `
+                <div class="container-item-number">${container.containerNumber}</div>
+                <div class="container-item-details">
+                    <span class="container-item-badge">${container.bayPosition || '-'}</span>
+                    <span class="container-item-badge">→ ${portDest.code}</span>
+                    <span class="container-item-badge">${size}</span>
+                    ${container.temperature !== null ? '<span class="container-item-badge">❄️</span>' : ''}
+                </div>
+            `;
+
+            item.addEventListener('click', () => {
+                selectContainerFromSidebar(container.containerNumber);
+            });
+
+            bayContainers.appendChild(item);
+        });
+
+        bayGroup.appendChild(bayHeader);
+        bayGroup.appendChild(bayContainers);
+        sidebarContent.appendChild(bayGroup);
+    });
+
+    // Setup sidebar search
+    const sidebarSearch = document.getElementById('sidebarSearch');
+    if (sidebarSearch) {
+        sidebarSearch.addEventListener('input', filterSidebar);
+    }
+
+    // Setup toggle button
+    const btnToggleSidebar = document.getElementById('btnToggleSidebar');
+    const sidebar = document.getElementById('bayplanSidebar');
+    if (btnToggleSidebar && sidebar) {
+        btnToggleSidebar.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+            btnToggleSidebar.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
+        });
+    }
+}
+
+/**
+ * Filter sidebar containers based on search
+ */
+function filterSidebar() {
+    const searchTerm = document.getElementById('sidebarSearch').value.toLowerCase();
+    const items = document.querySelectorAll('.sidebar-container-item');
+    const bayGroups = document.querySelectorAll('.sidebar-bay-group');
+
+    let totalVisible = 0;
+
+    bayGroups.forEach(group => {
+        const bayContainers = group.querySelector('.bay-containers');
+        const groupItems = group.querySelectorAll('.sidebar-container-item');
+        let visibleInBay = 0;
+
+        groupItems.forEach(item => {
+            const text = item.textContent.toLowerCase();
+            const matches = text.includes(searchTerm);
+            item.style.display = matches ? '' : 'none';
+            if (matches) {
+                visibleInBay++;
+                totalVisible++;
+            }
+        });
+
+        // Hide bay group if no visible containers
+        group.style.display = visibleInBay > 0 ? '' : 'none';
+
+        // Auto-expand bay groups with matches
+        if (visibleInBay > 0 && searchTerm.length > 0) {
+            bayContainers.classList.remove('collapsed');
+        }
+    });
+
+    // Update total
+    const sidebarTotal = document.getElementById('sidebarTotal');
+    if (sidebarTotal) {
+        sidebarTotal.textContent = searchTerm ?
+            `${totalVisible} de ${currentData.containers.length} contenedores` :
+            `${currentData.containers.length} contenedores`;
+    }
+}
+
+/**
+ * Select container from sidebar
+ */
+function selectContainerFromSidebar(containerNumber) {
+    // Remove previous selection
+    document.querySelectorAll('.sidebar-container-item').forEach(item => {
+        item.classList.remove('selected');
+    });
+
+    // Add selection to clicked item
+    const selectedItem = document.querySelector(`[data-container-number="${containerNumber}"]`);
+    if (selectedItem) {
+        selectedItem.classList.add('selected');
+    }
+
+    // Highlight and focus in 3D
+    if (bayplanVisualizer) {
+        bayplanVisualizer.highlightContainer(containerNumber);
+        bayplanVisualizer.focusOnContainer(containerNumber);
     }
 }
 
