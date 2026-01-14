@@ -249,6 +249,9 @@ function parseAndDisplayData(content) {
         currentData = parser.parse(content);
         filteredData = [...currentData.containers];
 
+        // Reset 3D visualizer to clear previous data
+        bayplanVisualizer = null;
+
         // Display data
         displayVoyageInfo();
         displayStatistics();
@@ -719,7 +722,7 @@ function showContainerDetail(container) {
         setTimeout(() => {
             bayplanVisualizer.highlightContainer(container.containerNumber);
             bayplanVisualizer.focusOnContainer(container.containerNumber);
-        }, 300);
+        }, 100);
     }
 }
 
@@ -1576,7 +1579,7 @@ function selectContainer() {
         setTimeout(() => {
             bayplanVisualizer.highlightContainer(containerNumber);
             bayplanVisualizer.focusOnContainer(containerNumber);
-        }, 300);
+        }, 100);
     }
 }
 
