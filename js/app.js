@@ -878,16 +878,17 @@ function switchBayplanTab(tab) {
             bayplanVisualizer = new BayplanVisualizer('bayplan3D');
             bayplanVisualizer.loadContainers(currentData.containers);
             populateContainerSelector();
+            initializeSidebarEvents(); // Initialize sidebar events once
         }
 
         // Always populate sidebar when showing 3D view
         populateSidebar();
 
-        // Resize canvas to fit new layout
+        // Resize canvas to fit new layout with a longer delay to ensure layout is ready
         if (bayplanVisualizer) {
             setTimeout(() => {
                 bayplanVisualizer.onWindowResize();
-            }, 100);
+            }, 300);
         }
     }
 }
@@ -1349,6 +1350,35 @@ function filterContainerList() {
 }
 
 /**
+ * Initialize sidebar events (call once)
+ */
+function initializeSidebarEvents() {
+    console.log('Initializing sidebar events...');
+
+    // Setup sidebar search
+    const sidebarSearch = document.getElementById('sidebarSearch');
+    if (sidebarSearch) {
+        sidebarSearch.addEventListener('input', filterSidebar);
+    }
+
+    // Setup toggle button
+    const btnToggleSidebar = document.getElementById('btnToggleSidebar');
+    const sidebar = document.getElementById('bayplanSidebar');
+    if (btnToggleSidebar && sidebar) {
+        btnToggleSidebar.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+            btnToggleSidebar.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
+            // Resize canvas after sidebar toggle
+            if (bayplanVisualizer) {
+                setTimeout(() => {
+                    bayplanVisualizer.onWindowResize();
+                }, 350);
+            }
+        });
+    }
+}
+
+/**
  * Populate sidebar with containers grouped by bay
  */
 function populateSidebar() {
@@ -1371,6 +1401,8 @@ function populateSidebar() {
         return;
     }
 
+    console.log('Creating sidebar with', currentData.containers.length, 'containers');
+
     // Update total
     sidebarTotal.textContent = `${currentData.containers.length} contenedores`;
 
@@ -1386,6 +1418,7 @@ function populateSidebar() {
 
     // Sort bays
     const sortedBays = Object.keys(bayGroups).map(Number).sort((a, b) => a - b);
+    console.log('Bay groups:', sortedBays.length, 'bays');
 
     // Clear sidebar
     sidebarContent.innerHTML = '';
@@ -1450,21 +1483,7 @@ function populateSidebar() {
         sidebarContent.appendChild(bayGroup);
     });
 
-    // Setup sidebar search
-    const sidebarSearch = document.getElementById('sidebarSearch');
-    if (sidebarSearch) {
-        sidebarSearch.addEventListener('input', filterSidebar);
-    }
-
-    // Setup toggle button
-    const btnToggleSidebar = document.getElementById('btnToggleSidebar');
-    const sidebar = document.getElementById('bayplanSidebar');
-    if (btnToggleSidebar && sidebar) {
-        btnToggleSidebar.addEventListener('click', () => {
-            sidebar.classList.toggle('collapsed');
-            btnToggleSidebar.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
-        });
-    }
+    console.log('Sidebar populated with', sidebarContent.children.length, 'bay groups');
 }
 
 /**

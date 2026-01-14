@@ -351,7 +351,7 @@ class BayplanVisualizer {
             gridHelper.position.set(centerX, minY - 1, centerZ);
         }
 
-        console.log('Camera centered on containers:', { centerX, centerY, centerZ, distance });
+        console.log('Camera centered on containers:', { centerX, centerY, centerZ, distance: this.viewDistance });
     }
 
     /**
@@ -474,6 +474,8 @@ class BayplanVisualizer {
     onWindowResize() {
         const width = this.canvas.parentElement.clientWidth;
         const height = this.canvas.parentElement.clientHeight;
+
+        console.log('Canvas resize:', { width, height, parent: this.canvas.parentElement });
 
         this.camera.aspect = width / height;
         this.camera.updateProjectionMatrix();
