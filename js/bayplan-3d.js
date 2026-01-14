@@ -282,7 +282,6 @@ class BayplanVisualizer {
 
         // Store container data with mesh
         mesh.userData = container;
-        mesh.userData.originalColor = color; // Store original color for reset
 
         this.scene.add(mesh);
         this.containerMeshes.push(mesh);
@@ -557,14 +556,11 @@ class BayplanVisualizer {
                 mesh.material.opacity = 1.0;
                 mesh.material.transparent = false;
                 mesh.material.emissiveIntensity = 0.3;
-                mesh.material.wireframe = false;
             } else {
-                // Non-selected containers - wireframe only with gray outline
-                mesh.material.opacity = 0.0; // Fully transparent
+                // Dimmed containers - more transparent
+                mesh.material.opacity = 0.08;
                 mesh.material.transparent = true;
-                mesh.material.emissiveIntensity = 0.0;
-                mesh.material.wireframe = true;
-                mesh.material.color.setHex(0x888888); // Gray color for wireframe
+                mesh.material.emissiveIntensity = 0.02;
             }
         });
     }
@@ -577,11 +573,6 @@ class BayplanVisualizer {
             mesh.material.opacity = 1.0;
             mesh.material.transparent = false;
             mesh.material.emissiveIntensity = 0.1;
-            mesh.material.wireframe = false;
-            // Restore original color
-            if (mesh.userData.originalColor) {
-                mesh.material.color.setHex(mesh.userData.originalColor);
-            }
         });
     }
 
