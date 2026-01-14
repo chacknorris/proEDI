@@ -30,6 +30,8 @@ function initializeApp() {
  * Setup all event listeners
  */
 function setupEventListeners() {
+    console.log('=== Setting up event listeners ===');
+
     const uploadZone = document.getElementById('uploadZone');
     const fileInput = document.getElementById('fileInput');
     const btnSelect = document.getElementById('btnSelect');
@@ -41,6 +43,8 @@ function setupEventListeners() {
     const exportCSV = document.getElementById('exportCSV');
     const prevPage = document.getElementById('prevPage');
     const nextPage = document.getElementById('nextPage');
+
+    console.log('Basic elements found:', {uploadZone, fileInput, btnSelect});
 
     // Drag and drop on upload zone
     uploadZone.addEventListener('dragover', handleDragOver);
@@ -101,17 +105,19 @@ function setupEventListeners() {
     const containerSearch = document.getElementById('containerSearch');
     const containerSelect = document.getElementById('containerSelect');
 
-    viewTop.addEventListener('click', () => setBayplanView('top', viewTop));
-    viewFront.addEventListener('click', () => setBayplanView('front', viewFront));
-    viewSide.addEventListener('click', () => setBayplanView('side', viewSide));
-    viewIso.addEventListener('click', () => setBayplanView('iso', viewIso));
+    console.log('Bayplan 3D controls found:', {viewTop, viewFront, viewSide, viewIso, containerSearch, containerSelect});
+
+    if (viewTop) viewTop.addEventListener('click', () => setBayplanView('top', viewTop));
+    if (viewFront) viewFront.addEventListener('click', () => setBayplanView('front', viewFront));
+    if (viewSide) viewSide.addEventListener('click', () => setBayplanView('side', viewSide));
+    if (viewIso) viewIso.addEventListener('click', () => setBayplanView('iso', viewIso));
 
     // Container search and selection
-    containerSearch.addEventListener('input', filterContainerList);
-    containerSelect.addEventListener('change', selectContainer);
+    if (containerSearch) containerSearch.addEventListener('input', filterContainerList);
+    if (containerSelect) containerSelect.addEventListener('change', selectContainer);
 
     const btnResetSelection = document.getElementById('btnResetSelection');
-    btnResetSelection.addEventListener('click', resetContainerSelection);
+    if (btnResetSelection) btnResetSelection.addEventListener('click', resetContainerSelection);
 
     // Export Bayplan PDF
     const exportBayplanPDF = document.getElementById('exportBayplanPDF');
