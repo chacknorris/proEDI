@@ -193,6 +193,15 @@ class BayplanVisualizer {
         // Assign colors to ports
         this.assignPortColors();
 
+        // Create bay index mapping for compact positioning
+        const uniqueBays = [...new Set(containers.map(c => c.bay).filter(b => b != null))];
+        uniqueBays.sort((a, b) => a - b);
+        this.bayIndexMap = {};
+        uniqueBays.forEach((bay, index) => {
+            this.bayIndexMap[bay] = index;
+        });
+        console.log('Bay index mapping:', this.bayIndexMap);
+
         // Create container meshes
         this.containers.forEach(container => {
             // Check for valid bay/row/tier (allow 0 as valid value)
@@ -254,9 +263,8 @@ class BayplanVisualizer {
         // Row: numbered from centerline (00=center, 01/02=port, 03/04=starboard, etc.)
         // Tier: numbered from bottom (02, 04, 06... 82=deck level, 84, 86, 88 above deck)
 
-        // Convert BAPLIE numbers to actual position indices
-        // Bays are usually odd numbers (001, 003, 005...) so divide by 2
-        const bayIndex = Math.floor(container.bay / 2);
+        // Use consecutive bay indices for compact positioning
+        const bayIndex = this.bayIndexMap[container.bay] || 0;
 
         // Rows: even = starboard (right), odd = port (left)
         // Center around 0, with rows spreading outward
@@ -270,7 +278,7 @@ class BayplanVisualizer {
         // Compact spacing for better navigation
         const rowSpacing = containerWidth * 0.5;      // More compact horizontally
         const tierSpacing = containerHeight * 0.5;    // More compact vertically
-        const baySpacing = containerLength * 0.6;     // More compact in depth
+        const baySpacing = containerLength + 0.2;     // Tight spacing between bays
 
         // Position calculation
         const x = rowSide * rowIndex * rowSpacing;
