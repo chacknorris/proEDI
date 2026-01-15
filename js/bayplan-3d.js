@@ -16,7 +16,9 @@ class BayplanVisualizer {
         this.mouse = new THREE.Vector2();
         this.hoveredContainer = null;
         this.center = { x: 0, y: 0, z: 0 };  // Center of containers
+        this.controlTarget = { x: 0, y: 0, z: 0 };  // Current camera rotation target
         this.viewDistance = 60;  // Distance for camera views
+        this.selectedContainer = null;  // Currently selected container
 
         // Port colors
         this.portColors = {};
@@ -135,11 +137,11 @@ class BayplanVisualizer {
             const deltaX = e.clientX - previousMousePosition.x;
             const deltaY = e.clientY - previousMousePosition.y;
 
-            // Get current center point
-            const center = new THREE.Vector3(this.center.x, this.center.y, this.center.z);
+            // Get current control target (selected container or scene center)
+            const targetPoint = new THREE.Vector3(this.controlTarget.x, this.controlTarget.y, this.controlTarget.z);
 
-            // Rotate camera around center point
-            const offset = new THREE.Vector3().subVectors(this.camera.position, center);
+            // Rotate camera around target point
+            const offset = new THREE.Vector3().subVectors(this.camera.position, targetPoint);
             const spherical = new THREE.Spherical();
             spherical.setFromVector3(offset);
             spherical.theta -= deltaX * rotationSpeed;
@@ -147,8 +149,8 @@ class BayplanVisualizer {
             spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi));
 
             offset.setFromSpherical(spherical);
-            this.camera.position.copy(center).add(offset);
-            this.camera.lookAt(center);
+            this.camera.position.copy(targetPoint).add(offset);
+            this.camera.lookAt(targetPoint);
 
             previousMousePosition = { x: e.clientX, y: e.clientY };
         });
@@ -163,9 +165,9 @@ class BayplanVisualizer {
 
         this.canvas.addEventListener('wheel', (e) => {
             e.preventDefault();
-            const center = new THREE.Vector3(this.center.x, this.center.y, this.center.z);
+            const targetPoint = new THREE.Vector3(this.controlTarget.x, this.controlTarget.y, this.controlTarget.z);
             const delta = e.deltaY * zoomSpeed;
-            const direction = new THREE.Vector3().subVectors(this.camera.position, center).normalize();
+            const direction = new THREE.Vector3().subVectors(this.camera.position, targetPoint).normalize();
             this.camera.position.add(direction.multiplyScalar(delta));
         });
     }
@@ -337,6 +339,8 @@ class BayplanVisualizer {
 
         // Store center for camera views
         this.center = { x: centerX, y: centerY, z: centerZ };
+        // Initialize control target to scene center
+        this.controlTarget = { x: centerX, y: centerY, z: centerZ };
 
         // Calculate size
         const sizeX = maxX - minX;
@@ -344,8 +348,8 @@ class BayplanVisualizer {
         const sizeZ = maxZ - minZ;
         const maxSize = Math.max(sizeX, sizeY, sizeZ);
 
-        // Position camera at a distance based on size
-        this.viewDistance = maxSize * 1.5;
+        // Position camera at a distance based on size (1.8 for more zoom out)
+        this.viewDistance = maxSize * 1.8;
 
         // Set camera to isometric view
         this.camera.position.set(
@@ -450,6 +454,13 @@ class BayplanVisualizer {
      * Set camera view
      */
     setView(viewType) {
+        // Reset control target to scene center
+        this.controlTarget = { x: this.center.x, y: this.center.y, z: this.center.z };
+
+        // Reset container selection and highlight
+        this.selectedContainer = null;
+        this.resetHighlight();
+
         const d = this.viewDistance;
         const c = this.center;
 
@@ -504,8 +515,14 @@ class BayplanVisualizer {
             return;
         }
 
+        // Track selected container
+        this.selectedContainer = containerNumber;
+
         // Get container position
         const pos = mesh.position;
+
+        // Set control target to container position (camera will now rotate around this container)
+        this.controlTarget = { x: pos.x, y: pos.y, z: pos.z };
 
         // Calculate camera position (closer zoom)
         const distance = 15;
@@ -579,11 +596,18 @@ class BayplanVisualizer {
      * Reset all containers to normal appearance
      */
     resetHighlight() {
+        // Reset visual highlighting
         this.containerMeshes.forEach(mesh => {
             mesh.material.opacity = 1.0;
             mesh.material.transparent = false;
             mesh.material.emissiveIntensity = 0.1;
         });
+
+        // Reset selection tracking
+        this.selectedContainer = null;
+
+        // Reset control target to scene center
+        this.controlTarget = { x: this.center.x, y: this.center.y, z: this.center.z };
     }
 
     /**
