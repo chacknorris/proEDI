@@ -193,6 +193,15 @@ class BayplanVisualizer {
         // Assign colors to ports
         this.assignPortColors();
 
+        // Create tier index mapping for compact vertical positioning
+        const uniqueTiers = [...new Set(containers.map(c => c.tier).filter(t => t != null))];
+        uniqueTiers.sort((a, b) => a - b);
+        this.tierIndexMap = {};
+        uniqueTiers.forEach((tier, index) => {
+            this.tierIndexMap[tier] = index;
+        });
+        console.log('Tier index mapping:', this.tierIndexMap);
+
         // Create container meshes
         this.containers.forEach(container => {
             // Check for valid bay/row/tier (allow 0 as valid value)
@@ -263,9 +272,9 @@ class BayplanVisualizer {
         const rowSide = container.row % 2 === 0 ? 1 : -1;  // Even = positive, Odd = negative
         const rowIndex = Math.floor(container.row / 2);
 
-        // Tiers: divide by 2 to get actual stack level
-        // 02 = level 1, 04 = level 2, etc.
-        const tierIndex = Math.floor(container.tier / 2);
+        // Use consecutive tier indices for compact vertical positioning
+        // This eliminates the huge gap between hold (02-08) and deck (82+) tiers
+        const tierIndex = this.tierIndexMap[container.tier] || 0;
 
         // Spacing between containers (original values)
         const rowSpacing = containerWidth + 0.1;
