@@ -267,10 +267,10 @@ class BayplanVisualizer {
         // 02 = level 1, 04 = level 2, etc.
         const tierIndex = Math.floor(container.tier / 2);
 
-        // Spacing between containers (much smaller for compact view)
-        const rowSpacing = containerWidth + 0.1;
-        const tierSpacing = containerHeight + 0.05;
-        const baySpacing = containerLength + 0.3;
+        // Compact spacing for better navigation
+        const rowSpacing = containerWidth * 0.5;      // More compact horizontally
+        const tierSpacing = containerHeight * 0.5;    // More compact vertically
+        const baySpacing = containerLength * 0.6;     // More compact in depth
 
         // Position calculation
         const x = rowSide * rowIndex * rowSpacing;
@@ -335,8 +335,8 @@ class BayplanVisualizer {
         const sizeZ = maxZ - minZ;
         const maxSize = Math.max(sizeX, sizeY, sizeZ);
 
-        // Position camera at a distance based on size
-        this.viewDistance = maxSize * 1.5;
+        // Position camera closer for better navigation
+        this.viewDistance = maxSize * 1.2;
 
         // Set camera to isometric view
         this.camera.position.set(
