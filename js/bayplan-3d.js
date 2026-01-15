@@ -193,15 +193,6 @@ class BayplanVisualizer {
         // Assign colors to ports
         this.assignPortColors();
 
-        // Create bay index mapping for compact positioning
-        const uniqueBays = [...new Set(containers.map(c => c.bay).filter(b => b != null))];
-        uniqueBays.sort((a, b) => a - b);
-        this.bayIndexMap = {};
-        uniqueBays.forEach((bay, index) => {
-            this.bayIndexMap[bay] = index;
-        });
-        console.log('Bay index mapping:', this.bayIndexMap);
-
         // Create container meshes
         this.containers.forEach(container => {
             // Check for valid bay/row/tier (allow 0 as valid value)
@@ -263,8 +254,9 @@ class BayplanVisualizer {
         // Row: numbered from centerline (00=center, 01/02=port, 03/04=starboard, etc.)
         // Tier: numbered from bottom (02, 04, 06... 82=deck level, 84, 86, 88 above deck)
 
-        // Use consecutive bay indices for compact positioning
-        const bayIndex = this.bayIndexMap[container.bay] || 0;
+        // Convert BAPLIE numbers to actual position indices
+        // Bays are usually odd numbers (001, 003, 005...) so divide by 2
+        const bayIndex = Math.floor(container.bay / 2);
 
         // Rows: even = starboard (right), odd = port (left)
         // Center around 0, with rows spreading outward
@@ -275,10 +267,10 @@ class BayplanVisualizer {
         // 02 = level 1, 04 = level 2, etc.
         const tierIndex = Math.floor(container.tier / 2);
 
-        // Compact spacing for better navigation
-        const rowSpacing = containerWidth * 0.5;      // More compact horizontally
-        const tierSpacing = containerHeight * 0.5;    // More compact vertically
-        const baySpacing = containerLength + 0.2;     // Tight spacing between bays
+        // Spacing between containers (original values)
+        const rowSpacing = containerWidth + 0.1;
+        const tierSpacing = containerHeight + 0.05;
+        const baySpacing = containerLength + 0.3;
 
         // Position calculation
         const x = rowSide * rowIndex * rowSpacing;
@@ -343,8 +335,8 @@ class BayplanVisualizer {
         const sizeZ = maxZ - minZ;
         const maxSize = Math.max(sizeX, sizeY, sizeZ);
 
-        // Position camera closer for better navigation
-        this.viewDistance = maxSize * 1.2;
+        // Position camera at a distance based on size
+        this.viewDistance = maxSize * 1.5;
 
         // Set camera to isometric view
         this.camera.position.set(
